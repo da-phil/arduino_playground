@@ -10,6 +10,7 @@
 #include <ArduinoMqttClient.h>
 
 #include "arduino_secrets.h"
+#include "utils.h"
 
 // Connect pin 1 (on the left) of the sensor to +5V
 // NOTE: If using a board with 3.3V logic like an Arduino Due connect pin 1 to 3.3V instead of 5V!
@@ -47,6 +48,9 @@ DHT dht(DHTPIN, DHTTYPE);
 // Initialize WiFi & MQTT broker connection
 WiFiClient wificlient;
 MqttClient mqttclient(wificlient);
+
+bool enablePrintMacAddress = true;
+bool enableScanAndListWifiNetworks = false;
 
 void printMacAddress()
 {
@@ -102,8 +106,14 @@ void setup()
         delay(10);
     }
 
-    // scan for existing networks:
-    // listNetworks();
+    if (enablePrintMacAddress)
+    {
+        printMacAddress();
+    }
+    if (enableScanAndListWifiNetworks)
+    {
+        listNetworks();
+    }
 
     // attempt to connect to WiFi network:
     Serial.print("Attempting to connect to SSID: ");
@@ -111,11 +121,11 @@ void setup()
     while (WiFi.begin(ssid, pass) != WL_CONNECTED)
     {
         Serial.println("Establishing connection failed... Attempt again...");
-        delay(250);
+        delay(50);
     }
 
     Serial.print("Connected to wifi with IP: ");
-    Serial.println(WiFi.localIP());
+    Serial.println(IpToString(WiFi.localIP()).c_str());
 
     // attempt to connect to MQTT broker
     Serial.print("Attempting to connect to the MQTT broker: ");
