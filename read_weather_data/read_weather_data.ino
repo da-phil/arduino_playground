@@ -34,10 +34,10 @@ const char *mqtt_server_ip = secrets_mqtt_server_ip;   // IP address of the MQTT
 const int mqtt_server_port = secrets_mqtt_server_port; // Port of MQTT broker
 const char *mqtt_username = secrets_mqtt_username;     // MQTT username
 const char *mqtt_password = secrets_mqtt_password;     // MQTT password
-const char *topic_temperature = "watering/temperature";
-const char *topic_humidity = "watering/humidity";
-const char *topic_heat_index = "watering/heat_index";
-const char *topic_pv_voltage = "watering/pv_voltage";
+const char *topic_temperature = "watering/dev/temperature";
+const char *topic_humidity = "watering/dev/humidity";
+const char *topic_heat_index = "watering/dev/heat_index";
+const char *topic_pv_voltage = "watering/dev/pv_voltage";
 
 // Initialize DHT sensor.
 // Note that older versions of this library took an optional third parameter to
