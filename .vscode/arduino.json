@@ -1,0 +1,7 @@
+{
+    "sketch": "read_weather_data/read_weather_data.ino",
+    "board": "arduino:samd:mkr1000",
+    "port": "/dev/ttyACM0",
+    "programmer": "atmel_ice",
+    "output": "build"
+}
