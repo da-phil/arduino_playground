@@ -24,7 +24,7 @@
 const float VREF = 3.3F;
 const unsigned int ADC_RES_BITS = 12;
 const float ADC_NUM_SAMPLES = 2 << (ADC_RES_BITS - 1);
-const float VOLTAGE_DIVIDER_FACTOR = 0.225F;
+const float VOLTAGE_DIVIDER_FACTOR = 0.224F;
 
 // WiFi config
 const char *ssid = secrets_ssid; // network SSID (name)

@@ -22,4 +22,4 @@ R2 = 19.5e3
 R2L = (R2 * RL) / (R2 + RL)
 FACTOR = R2L / (R1 + R2L)
 
-print(f"Voltage divider factor: {FACTOR:.5f}")
+print(f"Voltage divider factor for given R2({R2}): {FACTOR:.5f}")
