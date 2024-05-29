@@ -22,13 +22,13 @@ Tbd
 After checking out the code make sure to create a file `arduino_secrets.h` next to the `.ino` project file with the following contents:
 ```cpp
 // Secrets which are not supposed to be commited in version control!
-constexpr const char *secrets_ssid = "MyWifiNetwork"; // network SSID (name)
-constexpr const char *secrets_pass = "d3Adbeef"; // network password
-constexpr const char *secrets_mqtt_username = "watering_station"; // MQTT username
-constexpr const char *secrets_mqtt_password = "123456"; // MQTT password
+constexpr const char *SECRETS_WIFI_SSID = "MyWifiNetwork"; // network SSID (name)
+constexpr const char *SECRETS_WIFI_PASSWORD = "d3Adbeef"; // network password
+constexpr const char *SECRETS_MQTT_USERNAME = "watering_station"; // MQTT username
+constexpr const char *SECRETS_MQTT_PASSWORD = "123456"; // MQTT password
 
-constexpr const char *secrets_mqtt_server_ip = "192.168.0.1"; // IP address of the MQTT broker
-constexpr const int secrets_mqtt_server_port = 1883; // Port of MQTT broker
+constexpr const char *SECRETS_MQTT_SERVER_IP = "192.168.0.1"; // IP address of the MQTT broker
+constexpr const int SECRETS_MQTT_SERVER_PORT = 1883; // Port of MQTT broker
 ```
 
 ## Server setup

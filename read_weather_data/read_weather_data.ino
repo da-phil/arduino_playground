@@ -2,6 +2,13 @@
   Read weather data from DHT22 data and photovoltaik panel voltage:
   * reads PV voltage from analog input on pin A0 (14.6V max, voltage divider ratio: 0.24)
   * reads DHT22 humidity and temperature on digital input
+
+  Instruction how to connect the DHT22 sensor:
+  * Connect pin 1 (on the left) of the sensor to +5V
+    NOTE: If using a board with 3.3V logic like an Arduino Due connect pin 1 to 3.3V instead of 5V!
+  * Connect pin 2 of the sensor to whatever your DHTPIN is
+  * Connect pin 4 (on the right) of the sensor to GROUND
+  * Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
 */
 
 #include <DHT.h>
@@ -9,136 +16,110 @@
 #include <WiFi101.h>
 #include <ArduinoMqttClient.h>
 
+#include <cstdio>
 #include "arduino_secrets.h"
 #include "utils.h"
+#include "read_weather_data.h"
 
-// Connect pin 1 (on the left) of the sensor to +5V
-// NOTE: If using a board with 3.3V logic like an Arduino Due connect pin 1 to 3.3V instead of 5V!
-// Connect pin 2 of the sensor to whatever your DHTPIN is
-// Connect pin 4 (on the right) of the sensor to GROUND
-// Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
-#define DHTPIN 5      // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22 // DH11 / DHT21 / DHT22
+// Serial config
+constexpr unsigned long SERIAL_BAUDRATE{9600};
+constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL = false;
 
-// ADC Config
-const float VREF = 3.3F;
-const unsigned int ADC_RES_BITS = 12;
-const float ADC_NUM_SAMPLES = 2 << (ADC_RES_BITS - 1);
-const float VOLTAGE_DIVIDER_FACTOR = 0.224F;
+// ADC config
+constexpr float VREF = 3.3F;
+constexpr unsigned int ADC_RES_BITS = 12;
+constexpr float ADC_NUM_SAMPLES = 2 << (ADC_RES_BITS - 1);
+constexpr float VOLTAGE_DIVIDER_FACTOR = 0.224F;
 
-// WiFi config
-const char *ssid = secrets_ssid; // network SSID (name)
-const char *pass = secrets_pass; // network password
+// Wifi config
+constexpr WifiConfig wifi_config{
+    .ssid = SECRETS_WIFI_SSID,
+    .password = SECRETS_WIFI_PASSWORD,
+    .enablePrintMacAddress = true,
+    .enableScanAndListWifiNetworks = false};
 
-const char *mqtt_server_ip = secrets_mqtt_server_ip;   // IP address of the MQTT broker
-const int mqtt_server_port = secrets_mqtt_server_port; // Port of MQTT broker
-const char *mqtt_username = secrets_mqtt_username;     // MQTT username
-const char *mqtt_password = secrets_mqtt_password;     // MQTT password
-const char *topic_temperature = "watering/dev/temperature";
-const char *topic_humidity = "watering/dev/humidity";
-const char *topic_heat_index = "watering/dev/heat_index";
-const char *topic_pv_voltage = "watering/dev/pv_voltage";
+// MQTT config
+constexpr MqttConfig mqtt_config{
+    .server_ip = SECRETS_MQTT_SERVER_IP,
+    .server_port = SECRETS_MQTT_SERVER_PORT,
+    .username = SECRETS_MQTT_USERNAME,
+    .password = SECRETS_MQTT_PASSWORD};
 
-// Initialize DHT sensor.
-// Note that older versions of this library took an optional third parameter to
-// tweak the timings for faster processors.  This parameter is no longer needed
-// as the current DHT reading algorithm adjusts itself to work on faster procs.
-DHT dht(DHTPIN, DHTTYPE);
+constexpr const char *topic_temperature = "watering/dev/temperature";
+constexpr const char *topic_humidity = "watering/dev/humidity";
+constexpr const char *topic_heat_index = "watering/dev/heat_index";
+constexpr const char *topic_pv_voltage = "watering/dev/pv_voltage";
+
+// DHT22 sensor config
+constexpr std::uint8_t DHTPIN = 5; // Digital pin connected to the DHT sensor
+
+DHT dht(DHTPIN, DHT22);
 
 // Initialize WiFi & MQTT broker connection
 WiFiClient wificlient;
 MqttClient mqttclient(wificlient);
 
-bool enablePrintMacAddress = true;
-bool enableScanAndListWifiNetworks = false;
-
-void printMacAddress()
+void connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
-    // the MAC address of your Wifi shield
-    byte mac[6];
-
-    // print your MAC address:
-    WiFi.macAddress(mac);
-
-    Serial.print("MAC: ");
-    Serial.print(mac[5], HEX);
-    Serial.print(":");
-    Serial.print(mac[4], HEX);
-    Serial.print(":");
-    Serial.print(mac[3], HEX);
-    Serial.print(":");
-    Serial.print(mac[2], HEX);
-    Serial.print(":");
-    Serial.print(mac[1], HEX);
-    Serial.print(":");
-    Serial.println(mac[0], HEX);
-}
-
-void listNetworks()
-{
-    // scan for nearby networks:
-    Serial.println("** Scan Networks **");
-    byte numSsid = WiFi.scanNetworks();
-
-    // print the network number and name for each network found:
-    for (int thisNet = 0; thisNet < numSsid; thisNet++)
+    if (wifi_config.enablePrintMacAddress)
     {
-        Serial.print(thisNet);
-        Serial.print(") ");
-        Serial.print(WiFi.SSID(thisNet));
-        Serial.print("\tSignal: ");
-        Serial.print(WiFi.RSSI(thisNet));
-        Serial.print(" dBm");
-        Serial.print("\tEncryption: ");
-        Serial.println(WiFi.encryptionType(thisNet));
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////
-// The setup routine runs once when you press reset
-void setup()
-{
-    // initialize serial communication at 9600 bits per second:
-    Serial.begin(9600);
-    while (!Serial)
-    {
-        delay(10);
+        Serial.println(printMacAddress(WiFi).c_str());
     }
 
-    if (enablePrintMacAddress)
+    if (wifi_config.enableScanAndListWifiNetworks)
     {
-        printMacAddress();
-    }
-    if (enableScanAndListWifiNetworks)
-    {
-        listNetworks();
+        Serial.println(networkListToString(WiFi).c_str());
     }
 
-    // attempt to connect to WiFi network:
     Serial.print("Attempting to connect to SSID: ");
-    Serial.println(ssid);
-    while (WiFi.begin(ssid, pass) != WL_CONNECTED)
+    Serial.println(wifi_config.ssid);
+    while (wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED)
     {
-        Serial.println("Establishing connection failed... Attempt again...");
+        Serial.println(wifiStatusToString(wifi.status()));
+        Serial.println("Attempt to connect again...");
         delay(50);
     }
 
     Serial.print("Connected to wifi with IP: ");
-    Serial.println(IpToString(WiFi.localIP()).c_str());
+    Serial.println(IpToString(wifi.localIP()).c_str());
+}
 
-    // attempt to connect to MQTT broker
+void connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
+{
     Serial.print("Attempting to connect to the MQTT broker: ");
-    Serial.println(mqtt_server_ip);
+    Serial.println(mqtt_config.server_ip);
 
-    mqttclient.setUsernamePassword(mqtt_username, mqtt_password);
-    while (!mqttclient.connect(mqtt_server_ip, mqtt_server_port))
+    mqttclient.setUsernamePassword(mqtt_config.username, mqtt_config.password);
+    while (!mqttclient.connect(mqtt_config.server_ip, mqtt_config.server_port))
     {
         Serial.print("MQTT connection failed! Error code = ");
         Serial.println(mqttclient.connectError());
         delay(1000);
     }
     Serial.println("MQTT connection established!");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// The setup routine runs once when you press reset
+///////////////////////////////////////////////////////////////////////////////////////////
+
+void setup()
+{
+    Serial.begin(SERIAL_BAUDRATE);
+
+    if (ENABLE_WAIT_FOR_CONNECTED_TERMINAL)
+    {
+        while (!Serial)
+        {
+            delay(10);
+        }
+    }
+
+    // attempt to connect to WiFi network:
+    connectToWiFi(WiFi, wifi_config);
+
+    // attempt to connect to MQTT broker
+    connectToMqttBroker(mqttclient, mqtt_config);
 
     // Configure ADC
     analogReadResolution(ADC_RES_BITS);
@@ -149,13 +130,28 @@ void setup()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
+///////////////////////////////////////////////////////////////////////////////////////////
+
 void loop()
 {
-    // call poll() regularly to allow the library to send MQTT keep alives which
-    // avoids being disconnected by the broker
-    mqttclient.poll();
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        Serial.println(wifiStatusToString(WiFi.status()));
+        connectToWiFi(WiFi, wifi_config);
+    }
+
+    if (!mqttclient.connected())
+    {
+        Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
+        connectToMqttBroker(mqttclient, mqtt_config);
+    }
+    else
+    {
+        // call poll() regularly to allow the library to send MQTT keep alives which
+        // avoids being disconnected by the broker
+        mqttclient.poll();
+    }
 
     // read the input on analog pin 0 and convert to voltage range (0 - VREF):
     const int analog_val = analogRead(A0);
