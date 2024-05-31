@@ -1,0 +1,6 @@
+{
+    "board": "arduino:samd:mkrzero",
+    "sketch": "DHT22.ino",
+    "programmer": "AVR ISP",
+    "port": "/dev/ttyACM0"
+}
