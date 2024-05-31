@@ -19,7 +19,20 @@ Tbd
 
 ## Arduino setup
 
+### Prerequisites
+
+#### Arduino libraries
+
+In order to use this codebase the following Arduino libs are needed:
+
+* WiFi101
+* ArduinoMqttClient
+* DHT sensor library
+
+#### Credentials for WiFi network and MQTT broker
+
 After checking out the code make sure to create a file `arduino_secrets.h` next to the `.ino` project file with the following contents:
+
 ```cpp
 // Secrets which are not supposed to be commited in version control!
 constexpr const char *SECRETS_WIFI_SSID = "MyWifiNetwork"; // network SSID (name)
@@ -48,6 +61,7 @@ Restarting after modification of the configuration is done by: `sudo systemctl r
 #### Configuration
 
 There are clear instructions in the Mosquitto config (`/etc/mosquitto/mosquitto.conf`) where to place the config:
+
 ```
 # Place your local configuration in /etc/mosquitto/conf.d/
 #
@@ -56,6 +70,7 @@ There are clear instructions in the Mosquitto config (`/etc/mosquitto/mosquitto.
 ```
 
 So we create a new config, e.g. `/etc/mosquitto/conf.d/default.conf`:
+
 ```
 listener 1883
 allow_anonymous false
@@ -63,11 +78,14 @@ password_file /etc/mosquitto/pwfile
 ```
 
 We also need to creat the above mentioned pwfile `/etc/mosquitto/pwfile` in the following form:
+
 ```
 user1:this_is_my_bad_pw
 user2:another_weak_123_pw
 ```
+
 In my case I created an account for:
+
 * Each device which publishes to topics
 * Each human user
 * Each application which must read msgs
@@ -85,7 +103,7 @@ A commercial and an OSS branch and versions v1, v2 and v3.
 I went for the OSS v2 branch and version 2.7.6-1.
 
 The official installation guide encourages people to download binaries in tgz packages instead of using Linux package managers.
-However the following page gives clear and (still) working instructions on how to install DEB and RPM packages: https://repos.influxdata.com/debian/.
+However the following page gives clear and (still) working instructions on how to install DEB and RPM packages: <https://repos.influxdata.com/debian/>.
 
 Here is short summary on the steps:
 
@@ -107,6 +125,7 @@ Also configuration of InfluxDB is not that easy as it varies across major versio
 The following instructions have been only tested with influxdb2:
 
 * Make sure web GUI access is enabled in config `/etc/influxdb/influxdb.conf`:
+
   ```toml
   [http]
   # Determines whether HTTP endpoint is enabled.
@@ -116,17 +135,21 @@ The following instructions have been only tested with influxdb2:
   # Determines whether user authentication is enabled over HTTP/HTTPS.
   auth-enabled = true
   ```
+
 * Restart influxdb: `sudo service influxdb restart`.
 * Access web GUI: `http://<IP-Adress>:8086`
 * Create organisation `server` and admin account and write down API token
 * Assign admin API token to env variable: `export INFLUX_TOKEN=...`
-* Create config: 
+* Create config:
+
   ```
   influx config create --config-name telegraf \
                        --host-url http://localhost:8086 --org server \
                        --token $INFLUX_TOKEN
   ```
+
 * Create new account for user `telegraf`:
+
   ```
   influx auth create --org server  --user telegraf                  \
                      --read-authorizations --write-authorizations   \
@@ -135,6 +158,7 @@ The following instructions have been only tested with influxdb2:
                      --read-tasks             --write-tasks         \
                      --read-telegrafs         --write-telegrafs
   ```
+
   * Write down API token for new user
 
 ### MQTT to InfluxDB bridge: Telegraf
@@ -142,19 +166,19 @@ The following instructions have been only tested with influxdb2:
 #### Installation
 
 The Telegraf package is part of the InfluxDB package repository, see [Time series database: InfluxDB](#time-series-database-influxdb).
+
 ```
 sudo apt-get install telegraf
 ```
 
-
 #### Configuration
 
 Here is an example how to configure Telegraf to convert MQTT messages into InfluxDB measurements:
-https://github.com/influxdata/telegraf/tree/master/plugins/inputs/mqtt_consumer
+<https://github.com/influxdata/telegraf/tree/master/plugins/inputs/mqtt_consumer>
 
 There is also a good German blog article about how to configure Telegraf for what we plan to do:
 
-https://plantprogrammer.de/vom-datengrab-zum-datenschatz-mqtt-influxdb-und-grafana-teil-i/
+<https://plantprogrammer.de/vom-datengrab-zum-datenschatz-mqtt-influxdb-und-grafana-teil-i/>
 
 My config `/etc/telegraf/telegraf-watering.conf` looks like:
 
