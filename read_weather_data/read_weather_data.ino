@@ -21,6 +21,8 @@
 #include "utils.h"
 #include "read_weather_data.h"
 
+constexpr unsigned long RETRY_DELAY_MS{1000U};
+
 // Serial config
 constexpr unsigned long SERIAL_BAUDRATE{9600};
 constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL = false;
@@ -77,7 +79,7 @@ void connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     {
         Serial.println(wifiStatusToString(wifi.status()));
         Serial.println("Attempt to connect again...");
-        delay(50);
+        delay(RETRY_DELAY_MS);
     }
 
     Serial.print("Connected to wifi with IP: ");
@@ -92,9 +94,9 @@ void connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
     mqttclient.setUsernamePassword(mqtt_config.username, mqtt_config.password);
     while (!mqttclient.connect(mqtt_config.server_ip, mqtt_config.server_port))
     {
-        Serial.print("MQTT connection failed! Error code = ");
-        Serial.println(mqttclient.connectError());
-        delay(1000);
+        Serial.print("MQTT connection failed with the error: ");
+        Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
+        delay(RETRY_DELAY_MS);
     }
     Serial.println("MQTT connection established!");
 }
