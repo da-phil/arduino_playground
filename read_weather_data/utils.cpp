@@ -6,14 +6,11 @@
 
 std::string IpToString(const std::uint32_t ip_addr)
 {
-    std::string str{std::to_string(ip_addr & 0xFF)};
-    str += ".";
-    str += std::to_string((ip_addr >> 8) & 0xFF);
-    str += ".";
-    str += std::to_string((ip_addr >> 16) & 0xFF);
-    str += ".";
-    str += std::to_string((ip_addr >> 24) & 0xFF);
-    return str;
+    char ip_addr_str[16U];
+    snprintf(ip_addr_str, sizeof(ip_addr_str), "%u.%u.%u.%u", //
+             ip_addr & 0xFF, (ip_addr >> 8) & 0xFF, (ip_addr >> 16) & 0xFF, (ip_addr >> 24) & 0xFF);
+
+    return std::string{ip_addr_str};
 }
 
 std::string printMacAddress(WiFiClass &wifi)
@@ -22,7 +19,8 @@ std::string printMacAddress(WiFiClass &wifi)
     char mac_addr_str[32U];
 
     wifi.macAddress(mac);
-    snprintf(mac_addr_str, 32U, "%x:%x:%x:%x:%x:%x", mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
+    snprintf(mac_addr_str, sizeof(mac_addr_str), "%x:%x:%x:%x:%x:%x", //
+             mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
 
     return std::string{mac_addr_str};
 }
