@@ -28,6 +28,8 @@ In order to use this codebase the following Arduino libs are needed:
 * WiFi101
 * ArduinoMqttClient
 * DHT sensor library
+* NTPClient
+* RTCZero
 
 #### Credentials for WiFi network and MQTT broker
 

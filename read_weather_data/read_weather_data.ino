@@ -13,8 +13,11 @@
 
 #include <ArduinoMqttClient.h>
 #include <DHT.h>
+#include <NTPClient.h>
+#include <RTCZero.h>
 #include <SPI.h>
 #include <WiFi101.h>
+#include <WiFiUdp.h>
 #include <cstdio>
 
 #include "arduino_secrets.h"
@@ -58,9 +61,15 @@ constexpr std::uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
 
 DHT dht(DHTPIN, DHT22);
 
-// Initialize WiFi & MQTT broker connection
+// Initialize WiFi & MQTT broker clients
 WiFiClient wificlient;
 MqttClient mqttclient(wificlient);
+WiFiUDP wifi_udp_client;
+
+// Initialize NTP and RTC client. By default 'pool.ntp.org' is used with 60 seconds update interval
+constexpr long TIME_OFFSET_UTC_TO_CET{2 * 60 * 60};
+NTPClient ntp_client(wifi_udp_client, TIME_OFFSET_UTC_TO_CET);
+RTCZero rtc;
 
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
@@ -171,6 +180,9 @@ void setup()
     connectToWiFi(WiFi, wifi_config);
     connectToMqttBroker(mqttclient, mqtt_config);
 
+    ntp_client.begin();
+    rtc.begin();
+
     // Configure ADC
     analogReadResolution(ADC_RES_BITS);
     analogReference(AR_DEFAULT);
@@ -202,6 +214,19 @@ void loop()
         // avoids being disconnected by the broker
         mqttclient.poll();
     }
+
+    bool updated_time = ntp_client.update();
+    if (updated_time)
+    {
+        // Update RTC
+        rtc.setEpoch(ntp_client.getEpochTime());
+    }
+
+    char date_time[100U];
+    snprintf(date_time, sizeof(date_time), "20%u-%u-%u %u:%u:%u", rtc.getYear(), rtc.getMonth(), rtc.getDay(),
+             rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
+    Serial.print("RTC date-time: ");
+    Serial.println(date_time);
 
     // read the input on analog pin 0 and convert to voltage range (0 - VREF):
     const int analog_val = analogRead(A0);
