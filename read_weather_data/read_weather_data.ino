@@ -126,6 +126,27 @@ void printMeasurements(const Measurements &measurements)
     Serial.println(measurements.heat_index);
 }
 
+void sendMeasurements(MqttClient &mqttclient, const Measurements &measurements)
+{
+    if (!mqttclient.connected())
+    {
+        return;
+    }
+
+    mqttclient.beginMessage(topic_temperature);
+    mqttclient.print(measurements.temp_c);
+    mqttclient.endMessage();
+    mqttclient.beginMessage(topic_humidity);
+    mqttclient.print(measurements.humidity);
+    mqttclient.endMessage();
+    mqttclient.beginMessage(topic_heat_index);
+    mqttclient.print(measurements.heat_index);
+    mqttclient.endMessage();
+    mqttclient.beginMessage(topic_pv_voltage);
+    mqttclient.print(measurements.pv_voltage);
+    mqttclient.endMessage();
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 // The setup routine runs once when you press reset
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +217,7 @@ void loop()
 
     // Compute heat index in Celsius (isFahreheit = false)
     const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
-    
+
     const Measurements current_measurements{.temp_c = temp_c, //
                                             .humidity = humidity,
                                             .heat_index = heat_index,
@@ -207,18 +228,7 @@ void loop()
         printMeasurements(current_measurements);
     }
 
-    mqttclient.beginMessage(topic_temperature);
-    mqttclient.print(temp_c);
-    mqttclient.endMessage();
-    mqttclient.beginMessage(topic_humidity);
-    mqttclient.print(humidity);
-    mqttclient.endMessage();
-    mqttclient.beginMessage(topic_heat_index);
-    mqttclient.print(heat_index);
-    mqttclient.endMessage();
-    mqttclient.beginMessage(topic_pv_voltage);
-    mqttclient.print(pv_voltage);
-    mqttclient.endMessage();
+    sendMeasurements(mqttclient, current_measurements);
 
     delay(1000);
 }
