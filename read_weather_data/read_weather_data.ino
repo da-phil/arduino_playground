@@ -62,7 +62,7 @@ DHT dht(DHTPIN, DHT22);
 WiFiClient wificlient;
 MqttClient mqttclient(wificlient);
 
-void connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
+bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
     if (wifi_config.enablePrintMacAddress)
     {
@@ -93,9 +93,10 @@ void connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     {
         Serial.println("Could not connect, giving up");
     }
+    return wifi.status() == WL_CONNECTED;
 }
 
-void connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
+bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
 {
     Serial.print("Attempting to connect to the MQTT broker: ");
     Serial.println(mqtt_config.server_ip);
@@ -113,11 +114,13 @@ void connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
         Serial.print("Connection to MQTT broker failed with: ");
         Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
     }
+
+    return mqttclient.connected();
 }
 
 void printMeasurements(const Measurements &measurements)
 {
-    Serial.print("PV voltage: ");
+    Serial.print(F("PV voltage: "));
     Serial.println(measurements.pv_voltage);
     Serial.print(F("Humidity: "));
     Serial.print(measurements.humidity);
