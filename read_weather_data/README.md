@@ -62,7 +62,7 @@ Restarting after modification of the configuration is done by: `sudo systemctl r
 
 There are clear instructions in the Mosquitto config (`/etc/mosquitto/mosquitto.conf`) where to place the config:
 
-```
+```ApacheConf
 # Place your local configuration in /etc/mosquitto/conf.d/
 #
 # A full description of the configuration file is at
@@ -71,7 +71,7 @@ There are clear instructions in the Mosquitto config (`/etc/mosquitto/mosquitto.
 
 So we create a new config, e.g. `/etc/mosquitto/conf.d/default.conf`:
 
-```
+```ApacheConf
 listener 1883
 allow_anonymous false
 password_file /etc/mosquitto/pwfile
@@ -79,7 +79,7 @@ password_file /etc/mosquitto/pwfile
 
 We also need to creat the above mentioned pwfile `/etc/mosquitto/pwfile` in the following form:
 
-```
+```ApacheConf
 user1:this_is_my_bad_pw
 user2:another_weak_123_pw
 ```
@@ -96,7 +96,7 @@ Finally restarting the service should make the changes effective: `sudo systemct
 
 ### Time series database: InfluxDB
 
-#### Installation
+#### InfluxDB Installation
 
 This is the most difficult to install server application, due to the huge variety of versions to choose from and recently deprecated way of installing over package managers.
 A commercial and an OSS branch and versions v1, v2 and v3.
@@ -107,7 +107,7 @@ However the following page gives clear and (still) working instructions on how t
 
 Here is short summary on the steps:
 
-```
+```bash
 wget -q https://repos.influxdata.com/influxdata-archive_compat.key
 
 echo '393e8779c89ac8d958f81f942f9ad7fb82a25e133faddaf92e15b16e6ac9ce4c influxdata-archive_compat.key' | sha256sum -c && cat influxdata-archive_compat.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg > /dev/null
@@ -119,7 +119,7 @@ sudo apt-get update
 sudo apt-get install influxdb2 influxdb2-cli
 ```
 
-#### Configration
+#### InfluxDB Configration
 
 Also configuration of InfluxDB is not that easy as it varies across major versions.
 The following instructions have been only tested with influxdb2:
@@ -142,15 +142,15 @@ The following instructions have been only tested with influxdb2:
 * Assign admin API token to env variable: `export INFLUX_TOKEN=...`
 * Create config:
 
-  ```
+  ```bash
   influx config create --config-name telegraf \
                        --host-url http://localhost:8086 --org server \
                        --token $INFLUX_TOKEN
   ```
 
-* Create new account for user `telegraf`:
+* Create new account for user `telegraf` and write down API token:
 
-  ```
+  ```bash
   influx auth create --org server  --user telegraf                  \
                      --read-authorizations --write-authorizations   \
                      --read-buckets           --write-buckets       \
@@ -159,19 +159,24 @@ The following instructions have been only tested with influxdb2:
                      --read-telegrafs         --write-telegrafs
   ```
 
-  * Write down API token for new user
+* Create new account for user `grafana` for read-only access and write down API token:
+
+  ```bash
+  influx auth create --org server  --user grafana                   \
+                     --read-buckets --read-dashboards --read-tasks           
+  ```
 
 ### MQTT to InfluxDB bridge: Telegraf
 
-#### Installation
+#### Telegraf Installation
 
 The Telegraf package is part of the InfluxDB package repository, see [Time series database: InfluxDB](#time-series-database-influxdb).
 
-```
+```bash
 sudo apt-get install telegraf
 ```
 
-#### Configuration
+#### Telegraf Configuration
 
 Here is an example how to configure Telegraf to convert MQTT messages into InfluxDB measurements:
 <https://github.com/influxdata/telegraf/tree/master/plugins/inputs/mqtt_consumer>
@@ -211,7 +216,63 @@ My config `/etc/telegraf/telegraf-watering.conf` looks like:
   ## _ denotes an ignored entry in the topic path
   [[inputs.mqtt_consumer.topic_parsing]]
     topic = "watering/+/+"
-    measurement = "measurement/_/_"
+    measurement = "_/_/measurement"
     tags = "_/branch/_"
     fields = "_/_/field"
 ```
+
+### Grafana
+
+#### Grafana Installation
+
+Follow the description on the official Grafana homepage:
+<https://grafana.com/docs/grafana/latest/setup-grafana/installation/debian/>
+
+Installing the latest OSS version (stable release) is shown here in a nutshell:
+
+```bash
+# Install the prerequisite packages:
+sudo apt-get install -y apt-transport-https software-properties-common wget
+
+# Import the GPG key:
+sudo mkdir -p /etc/apt/keyrings/
+wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
+
+# To add a repository for stable releases, run the following command:
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+
+# Updates the list of available packages and install latest OSS release:
+sudo apt-get update && sudo apt-get install grafana
+```
+
+#### Grafana Configuration
+
+Open `/etc/grafana/grafana.ini` config file and make sure the following config options are set:
+
+```ApacheConf
+app_mode = production
+instance_name = ${HOSTNAME}
+
+[server]
+# Protocol (http, https, h2, socket)
+protocol = https
+http_port = 3000
+```
+
+After updating the config, restart the service by:
+
+```bash
+sudo systemctl restart grafana-server.service 
+```
+
+Now you should be able to access the web GUI at <https://localhost:3000> and create the initial `admin` account to get started with the remaining configuration steps, such as optionally creating further user accounts and further fine-tuning.
+
+In the `Connections` section you can add the existing influxdb bucket by the following settings:
+
+* Query language: Flux
+* HTTP
+  * URL: <http://localhost:8086>
+* InfluxDB Details
+  * Organization: server
+  * Token: \<TOKEN-OF-YOUR-GRAFANA-READ-ONLY-USER\>
+  * Default Bucket: weather_station
