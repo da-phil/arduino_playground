@@ -58,7 +58,7 @@ const char *wifiStatusToString(std::uint8_t wifi_status)
     case WL_DISCONNECTED:
         return "Wifi disconnected";
     case WL_IDLE_STATUS:
-        [[fallthrough]];
+        return "WiFi in IDLE mode";
     case WL_CONNECTED:
         [[fallthrough]];
     default:

@@ -11,17 +11,18 @@
   * Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
 */
 
+#include <ArduinoMqttClient.h>
 #include <DHT.h>
 #include <SPI.h>
 #include <WiFi101.h>
-#include <ArduinoMqttClient.h>
-
 #include <cstdio>
-#include "arduino_secrets.h"
-#include "utils.h"
-#include "read_weather_data.h"
 
-constexpr unsigned long RETRY_DELAY_MS{1000U};
+#include "arduino_secrets.h"
+#include "read_weather_data.h"
+#include "utils.h"
+
+constexpr unsigned long RETRY_DELAY_MS{500U};
+constexpr unsigned int MAX_RETRIES_WIFI{2U};
 
 // Serial config
 constexpr unsigned long SERIAL_BAUDRATE{9600};
@@ -34,18 +35,16 @@ constexpr float ADC_NUM_SAMPLES = 2 << (ADC_RES_BITS - 1);
 constexpr float VOLTAGE_DIVIDER_FACTOR = 0.224F;
 
 // Wifi config
-constexpr WifiConfig wifi_config{
-    .ssid = SECRETS_WIFI_SSID,
-    .password = SECRETS_WIFI_PASSWORD,
-    .enablePrintMacAddress = true,
-    .enableScanAndListWifiNetworks = false};
+constexpr WifiConfig wifi_config{.ssid = SECRETS_WIFI_SSID,
+                                 .password = SECRETS_WIFI_PASSWORD,
+                                 .enablePrintMacAddress = true,
+                                 .enableScanAndListWifiNetworks = false};
 
 // MQTT config
-constexpr MqttConfig mqtt_config{
-    .server_ip = SECRETS_MQTT_SERVER_IP,
-    .server_port = SECRETS_MQTT_SERVER_PORT,
-    .username = SECRETS_MQTT_USERNAME,
-    .password = SECRETS_MQTT_PASSWORD};
+constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
+                                 .server_port = SECRETS_MQTT_SERVER_PORT,
+                                 .username = SECRETS_MQTT_USERNAME,
+                                 .password = SECRETS_MQTT_PASSWORD};
 
 constexpr const char *topic_temperature = "watering/dev/temperature";
 constexpr const char *topic_humidity = "watering/dev/humidity";
@@ -53,7 +52,7 @@ constexpr const char *topic_heat_index = "watering/dev/heat_index";
 constexpr const char *topic_pv_voltage = "watering/dev/pv_voltage";
 
 // DHT22 sensor config
-constexpr std::uint8_t DHTPIN = 5; // Digital pin connected to the DHT sensor
+constexpr std::uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
 
 DHT dht(DHTPIN, DHT22);
 
@@ -75,15 +74,23 @@ void connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(wifi_config.ssid);
-    while (wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED)
+    unsigned int retries = 0U;
+    while ((wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED) && (retries < MAX_RETRIES_WIFI))
     {
         Serial.println(wifiStatusToString(wifi.status()));
         Serial.println("Attempt to connect again...");
         delay(RETRY_DELAY_MS);
     }
 
-    Serial.print("Connected to wifi with IP: ");
-    Serial.println(IpToString(wifi.localIP()).c_str());
+    if (wifi.status() == WL_CONNECTED)
+    {
+        Serial.print("Connected to wifi with IP: ");
+        Serial.println(IpToString(wifi.localIP()).c_str());
+    }
+    else
+    {
+        Serial.println("Could not connect, giving up");
+    }
 }
 
 void connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
@@ -92,13 +99,18 @@ void connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
     Serial.println(mqtt_config.server_ip);
 
     mqttclient.setUsernamePassword(mqtt_config.username, mqtt_config.password);
-    while (!mqttclient.connect(mqtt_config.server_ip, mqtt_config.server_port))
+    mqttclient.connect(mqtt_config.server_ip, mqtt_config.server_port);
+    delay(100U);
+
+    if (mqttclient.connected())
     {
-        Serial.print("MQTT connection failed with the error: ");
-        Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
-        delay(RETRY_DELAY_MS);
+        Serial.println("Connected to MQTT broker!");
     }
-    Serial.println("MQTT connection established!");
+    else
+    {
+        Serial.print("Connection to MQTT broker failed with: ");
+        Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -117,10 +129,8 @@ void setup()
         }
     }
 
-    // attempt to connect to WiFi network:
+    // attempt to connect to WiFi network and MQTT broker
     connectToWiFi(WiFi, wifi_config);
-
-    // attempt to connect to MQTT broker
     connectToMqttBroker(mqttclient, mqtt_config);
 
     // Configure ADC
