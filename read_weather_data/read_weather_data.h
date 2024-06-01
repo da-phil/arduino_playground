@@ -1,3 +1,6 @@
+#ifndef READ_WEATHER_DATA_H
+#define READ_WEATHER_DATA_H
+
 struct MqttConfig
 {
     const char *server_ip;
@@ -21,3 +24,5 @@ struct Measurements
     float heat_index;
     float pv_voltage;
 };
+
+#endif // READ_WEATHER_DATA_H
