@@ -13,3 +13,11 @@ struct WifiConfig
     bool enablePrintMacAddress;
     bool enableScanAndListWifiNetworks;
 };
+
+struct Measurements
+{
+    float temp_c;
+    float humidity;
+    float heat_index;
+    float pv_voltage;
+};

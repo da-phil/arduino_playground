@@ -23,10 +23,11 @@
 
 constexpr unsigned long RETRY_DELAY_MS{500U};
 constexpr unsigned int MAX_RETRIES_WIFI{2U};
+constexpr bool PRINT_MEASUREMENTS{true};
 
 // Serial config
 constexpr unsigned long SERIAL_BAUDRATE{9600};
-constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL = false;
+constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL{false};
 
 // ADC config
 constexpr float VREF = 3.3F;
@@ -113,6 +114,18 @@ void connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
     }
 }
 
+void printMeasurements(const Measurements &measurements)
+{
+    Serial.print("PV voltage: ");
+    Serial.println(measurements.pv_voltage);
+    Serial.print(F("Humidity: "));
+    Serial.print(measurements.humidity);
+    Serial.print(F("%  Temperature: "));
+    Serial.print(measurements.temp_c);
+    Serial.print(F("°C  Heat index: "));
+    Serial.println(measurements.heat_index);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 // The setup routine runs once when you press reset
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -169,31 +182,30 @@ void loop()
     const int analog_val = analogRead(A0);
     const float adc_voltage = analog_val * (VREF / ADC_NUM_SAMPLES);
     const float pv_voltage = adc_voltage / VOLTAGE_DIVIDER_FACTOR;
-    Serial.print("PV voltage: ");
-    Serial.println(pv_voltage);
 
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     float humidity = dht.readHumidity();
-    // Read temperature as Celsius (the default)
     float temp_c = dht.readTemperature();
-
-    // Check if any reads failed and exit early (to try again).
     if (isnan(humidity) || isinf(humidity) || isnan(temp_c) || isinf(temp_c))
     {
         Serial.println(F("Failed to read from DHT sensor!"));
-        return;
+        humidity = 0.0;
+        temp_c = 0.0;
     }
 
     // Compute heat index in Celsius (isFahreheit = false)
-    float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
+    const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
+    
+    const Measurements current_measurements{.temp_c = temp_c, //
+                                            .humidity = humidity,
+                                            .heat_index = heat_index,
+                                            .pv_voltage = pv_voltage};
 
-    Serial.print(F("Humidity: "));
-    Serial.print(humidity);
-    Serial.print(F("%  Temperature: "));
-    Serial.print(temp_c);
-    Serial.print(F("°C  Heat index: "));
-    Serial.println(heat_index);
+    if (PRINT_MEASUREMENTS)
+    {
+        printMeasurements(current_measurements);
+    }
 
     mqttclient.beginMessage(topic_temperature);
     mqttclient.print(temp_c);
