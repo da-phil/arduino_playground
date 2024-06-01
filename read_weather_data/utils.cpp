@@ -1,5 +1,6 @@
-#include <WiFi101.h>
 #include <ArduinoMqttClient.h>
+#include <WiFi101.h>
+#include <cstdio>
 
 #include "utils.h"
 
