@@ -55,10 +55,8 @@ constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
                                  .password = SECRETS_MQTT_PASSWORD};
 
 #define BRANCH "dev"
-constexpr const char *topic_temperature = "watering/" BRANCH "/temperature";
-constexpr const char *topic_humidity = "watering/" BRANCH "/humidity";
-constexpr const char *topic_heat_index = "watering/" BRANCH "/heat_index";
-constexpr const char *topic_pv_voltage = "watering/" BRANCH "/pv_voltage";
+#define LOCATION "balkon"
+constexpr const char *topic_measurements = "watering/" LOCATION "/" BRANCH "/measurements";
 
 // DHT22 sensor config
 constexpr std::uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
@@ -70,10 +68,11 @@ WiFiClient wificlient;
 MqttClient mqttclient(wificlient);
 WiFiUDP wifi_udp_client;
 
-// Initialize NTP and RTC client.
-constexpr long TIME_OFFSET_UTC_TO_CET{2 * 60 * 60};
+// Initialize NTP and RTC client
+constexpr long UTC_TO_CET_OFFSET_H{2};
+constexpr long GMT_TO_UTC_OFFSET_S{UTC_TO_CET_OFFSET_H * 60 * 60};
 constexpr unsigned long NTP_UPDATE_INTERVAL{120U};
-NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", TIME_OFFSET_UTC_TO_CET, NTP_UPDATE_INTERVAL);
+NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
 
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
@@ -144,6 +143,19 @@ void printMeasurements(const Measurements &measurements)
     Serial.println(measurements.heat_index);
 }
 
+std::string createJsonObjectFromMeasurement(const Measurements &measurements)
+{
+    char json_str[256U];
+    snprintf(json_str, sizeof(json_str),
+             "{\"timestamp\": %u, \"temperature\": %.2f,"
+             "\"humidity\": %.2f, \"heat_index\": %.2f,"
+             "\"pv_voltage\": %.2f}",
+             measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.heat_index,
+             measurements.pv_voltage);
+
+    return std::string{json_str};
+}
+
 void sendMeasurements(MqttClient &mqttclient, const Measurements &measurements)
 {
     if (!mqttclient.connected())
@@ -151,17 +163,8 @@ void sendMeasurements(MqttClient &mqttclient, const Measurements &measurements)
         return;
     }
 
-    mqttclient.beginMessage(topic_temperature);
-    mqttclient.print(measurements.temp_c);
-    mqttclient.endMessage();
-    mqttclient.beginMessage(topic_humidity);
-    mqttclient.print(measurements.humidity);
-    mqttclient.endMessage();
-    mqttclient.beginMessage(topic_heat_index);
-    mqttclient.print(measurements.heat_index);
-    mqttclient.endMessage();
-    mqttclient.beginMessage(topic_pv_voltage);
-    mqttclient.print(measurements.pv_voltage);
+    mqttclient.beginMessage(topic_measurements);
+    mqttclient.print(createJsonObjectFromMeasurement(measurements).c_str());
     mqttclient.endMessage();
 }
 
@@ -247,7 +250,8 @@ void loop()
     // Compute heat index in Celsius (isFahreheit = false)
     const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
 
-    const Measurements current_measurements{.temp_c = temp_c, //
+    const Measurements current_measurements{.timestamp = rtc.getEpoch(),
+                                            .temp_c = temp_c,
                                             .humidity = humidity,
                                             .heat_index = heat_index,
                                             .pv_voltage = pv_voltage};
@@ -257,9 +261,9 @@ void loop()
         printMeasurements(current_measurements);
 
         char date_time[100U];
-        snprintf(date_time, sizeof(date_time), "RTC date & time: 20%u-%02u-%02u %02u:%u:%u", //
-                 rtc.getYear(), rtc.getMonth(), rtc.getDay(),                                //
-                 rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
+        snprintf(date_time, sizeof(date_time), "RTC date & time in CET: 20%u-%02u-%02u %02u:%u:%u", //
+                 rtc.getYear(), rtc.getMonth(), rtc.getDay(),                                       //
+                 rtc.getHours() + UTC_TO_CET_OFFSET_H, rtc.getMinutes(), rtc.getSeconds());
         Serial.println(date_time);
     }
 

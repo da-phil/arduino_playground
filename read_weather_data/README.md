@@ -9,7 +9,7 @@ Those are the measured quantities so far:
 * Humidity (measured by an DHT22 sensor)
 * Output voltage of a PV panel (0-14.6V)
 
-This data is collected by a Arduino MKR 1000 WiFi board which is connected to a local WiFi network to broadcast the above mentioned measurements over MQTT topics, such as `watering/[dev,prod,v1,v2,...]/[temperature,humidity,heat_index,pv_voltage` to a remote MQTT broker.
+This data is collected by an Arduino MKR 1000 Wi-Fi board which is connected to a local Wi-Fi network to broadcast the above-mentioned measurements over MQTT topics, such as `watering/location/[dev,prod,v1,v2,...]/measurements` to a remote MQTT broker. The message will be in JSON format and contain a UTC Unix epoch timestamp in seconds and all relevant measurements such as temperature, humidity and solar panel voltage.
 
 The server which runs the MQTT broker also runs a time series database and a bridge component which subscribes to all related topics and populates the database.
 
@@ -31,9 +31,9 @@ In order to use this codebase the following Arduino libs are needed:
 * NTPClient
 * RTCZero
 
-#### Credentials for WiFi network and MQTT broker
+#### Credentials for Wi-Fi network and MQTT broker
 
-After checking out the code make sure to create a file `arduino_secrets.h` next to the `.ino` project file with the following contents:
+After checking out the code make sure to adapt `arduino_secrets.h` to your network setup and credentials:
 
 ```cpp
 // Secrets which are not supposed to be commited in version control!
@@ -41,7 +41,6 @@ constexpr const char *SECRETS_WIFI_SSID = "MyWifiNetwork"; // network SSID (name
 constexpr const char *SECRETS_WIFI_PASSWORD = "d3Adbeef"; // network password
 constexpr const char *SECRETS_MQTT_USERNAME = "watering_station"; // MQTT username
 constexpr const char *SECRETS_MQTT_PASSWORD = "123456"; // MQTT password
-
 constexpr const char *SECRETS_MQTT_SERVER_IP = "192.168.0.1"; // IP address of the MQTT broker
 constexpr const int SECRETS_MQTT_SERVER_PORT = 1883; // Port of MQTT broker
 ```
@@ -180,8 +179,25 @@ sudo apt-get install telegraf
 
 #### Telegraf Configuration
 
-Here is an example how to configure Telegraf to convert MQTT messages into InfluxDB measurements:
-<https://github.com/influxdata/telegraf/tree/master/plugins/inputs/mqtt_consumer>
+Essentially Telegraf should convert the following JSON schema into influxdb database records:
+
+```json
+{
+  "timestamp": 1717354252,
+  "temperature": 20.80,
+  "humidity": 82.00,
+  "heat_index": 21.08,
+  "pv_voltage": 10.2
+}
+```
+
+Timestamps are provided as seconds since Unix epoch in UTC time-zone.
+
+Here are some how-to's and examples on how to configure Telegraf to convert MQTT messages into InfluxDB measurements:
+
+* <https://github.com/influxdata/telegraf/tree/master/plugins/inputs/mqtt_consumer>
+* <https://www.influxdata.com/blog/how-parse-json-telegraf-influxdb-cloud>
+* <https://www.influxdata.com/blog/mqtt-topic-payload-parsing-telegraf>
 
 There is also a good German blog article about how to configure Telegraf for what we plan to do:
 
@@ -196,31 +212,28 @@ My config `/etc/telegraf/telegraf-watering.conf` looks like:
 
   ## Token for authentication ($INFLUX_TOKEN also possible).
   token = "ad82eikd2dkdkfajsdl2dkasdlasdfj=="
-
-  ## Organization is the name of the organization you wish to write to; must exist.
   organization = "server"
-
-  ## Destination bucket to write into.
   bucket = "weather_station"
 
-  ## Topics that will be subscribed to.
-  topics = ["watering/#"]
-  data_format = "value"
-  data_type = "float"
-
 [[inputs.mqtt_consumer]]
-  ## Broker URLs for the MQTT server or cluster.
   servers = ["tcp://127.0.0.1:1883"]
   username = "telegraf"
-  password = "foobar42"
+  password = "123456"
 
-  ## Enable extracting tag values from MQTT topics
-  ## _ denotes an ignored entry in the topic path
+  topics = ["watering/#"]
+  data_format = "json_v2"
+
   [[inputs.mqtt_consumer.topic_parsing]]
-    topic = "watering/+/+"
-    measurement = "_/_/measurement"
-    tags = "_/branch/_"
-    fields = "_/_/field"
+    topic = "watering/+/+/+"
+    measurement = "_/_/_/measurement"
+    tags = "_/location/branch/_"
+
+  [[inputs.mqtt_consumer.json_v2]]
+    [[inputs.mqtt_consumer.json_v2.object]]
+      path = "@this"
+      timestamp_key = "timestamp"
+      timestamp_format = "unix"
+      timestamp_timezone = "UTC"
 ```
 
 ### Grafana
