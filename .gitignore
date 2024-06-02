@@ -2,3 +2,4 @@ c_cpp_properties.json
 build/
 libraries/
 arduino_secrets.h
+*.code-workspace
