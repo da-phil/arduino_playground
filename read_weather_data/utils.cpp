@@ -1,5 +1,4 @@
 #include <ArduinoMqttClient.h>
-#include <WiFi101.h>
 #include <cstdio>
 
 #include "utils.h"
@@ -9,7 +8,7 @@ bool isConnectedToWiFi(WiFiClass &wifi)
     return (wifi.status() == WL_CONNECTED);
 }
 
-std::string IpToString(const std::uint32_t ip_addr)
+std::string IpToString(const uint32_t ip_addr)
 {
     char ip_addr_str[16U];
     snprintf(ip_addr_str, sizeof(ip_addr_str), "%u.%u.%u.%u", //
@@ -49,7 +48,7 @@ std::string networkListToString(WiFiClass &wifi)
     return output;
 }
 
-const char *wifiStatusToString(std::uint8_t wifi_status)
+const char *wifiStatusToString(uint8_t wifi_status)
 {
     switch (static_cast<wl_status_t>(wifi_status))
     {
