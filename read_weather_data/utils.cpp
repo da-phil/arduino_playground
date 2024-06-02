@@ -4,6 +4,11 @@
 
 #include "utils.h"
 
+bool isConnectedToWiFi(WiFiClass &wifi)
+{
+    return (wifi.status() == WL_CONNECTED);
+}
+
 std::string IpToString(const std::uint32_t ip_addr)
 {
     char ip_addr_str[16U];

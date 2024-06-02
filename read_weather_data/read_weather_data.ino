@@ -29,13 +29,13 @@ constexpr unsigned int MAX_RETRIES_WIFI{2U};
 constexpr bool PRINT_MEASUREMENTS{true};
 
 // Serial config
-constexpr unsigned long SERIAL_BAUDRATE{9600};
+constexpr unsigned long SERIAL_BAUDRATE{9600U};
 constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL{false};
 
 // ADC config
 constexpr float VREF = 3.3F;
-constexpr unsigned int ADC_RES_BITS = 12;
-constexpr float ADC_NUM_SAMPLES = 2 << (ADC_RES_BITS - 1);
+constexpr unsigned int ADC_RES_BITS = 12U;
+constexpr unsigned int ADC_NUM_SAMPLES = 2U << (ADC_RES_BITS - 1U);
 constexpr float VOLTAGE_DIVIDER_FACTOR = 0.224F;
 
 // Wifi config
@@ -66,9 +66,10 @@ WiFiClient wificlient;
 MqttClient mqttclient(wificlient);
 WiFiUDP wifi_udp_client;
 
-// Initialize NTP and RTC client. By default 'pool.ntp.org' is used with 60 seconds update interval
+// Initialize NTP and RTC client.
 constexpr long TIME_OFFSET_UTC_TO_CET{2 * 60 * 60};
-NTPClient ntp_client(wifi_udp_client, TIME_OFFSET_UTC_TO_CET);
+constexpr unsigned long NTP_UPDATE_INTERVAL{120U};
+NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", TIME_OFFSET_UTC_TO_CET, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
 
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
@@ -93,7 +94,7 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
         delay(RETRY_DELAY_MS);
     }
 
-    if (wifi.status() == WL_CONNECTED)
+    if (isConnectedToWiFi(WiFi))
     {
         Serial.print("Connected to wifi with IP: ");
         Serial.println(IpToString(wifi.localIP()).c_str());
@@ -102,7 +103,7 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     {
         Serial.println("Could not connect, giving up");
     }
-    return wifi.status() == WL_CONNECTED;
+    return isConnectedToWiFi(wifi);
 }
 
 bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
@@ -197,10 +198,19 @@ void setup()
 
 void loop()
 {
-    if (WiFi.status() != WL_CONNECTED)
+    if (!isConnectedToWiFi(WiFi))
     {
         Serial.println(wifiStatusToString(WiFi.status()));
         connectToWiFi(WiFi, wifi_config);
+    }
+    else
+    {
+        // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
+        if (ntp_client.update())
+        {
+            // if updated, also update RTC
+            rtc.setEpoch(static_cast<uint32_t>(ntp_client.getEpochTime()));
+        }
     }
 
     if (!mqttclient.connected())
@@ -215,22 +225,9 @@ void loop()
         mqttclient.poll();
     }
 
-    bool updated_time = ntp_client.update();
-    if (updated_time)
-    {
-        // Update RTC
-        rtc.setEpoch(ntp_client.getEpochTime());
-    }
-
-    char date_time[100U];
-    snprintf(date_time, sizeof(date_time), "20%u-%u-%u %u:%u:%u", rtc.getYear(), rtc.getMonth(), rtc.getDay(),
-             rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
-    Serial.print("RTC date-time: ");
-    Serial.println(date_time);
-
     // read the input on analog pin 0 and convert to voltage range (0 - VREF):
     const int analog_val = analogRead(A0);
-    const float adc_voltage = analog_val * (VREF / ADC_NUM_SAMPLES);
+    const float adc_voltage = analog_val * (VREF / static_cast<float>(ADC_NUM_SAMPLES));
     const float pv_voltage = adc_voltage / VOLTAGE_DIVIDER_FACTOR;
 
     // Reading temperature or humidity takes about 250 milliseconds!
@@ -243,7 +240,6 @@ void loop()
         humidity = 0.0;
         temp_c = 0.0;
     }
-
     // Compute heat index in Celsius (isFahreheit = false)
     const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
 
@@ -255,6 +251,12 @@ void loop()
     if (PRINT_MEASUREMENTS)
     {
         printMeasurements(current_measurements);
+
+        char date_time[100U];
+        snprintf(date_time, sizeof(date_time), "RTC date & time: 20%u-%02u-%02u %02u:%u:%u", //
+                 rtc.getYear(), rtc.getMonth(), rtc.getDay(),                                //
+                 rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
+        Serial.println(date_time);
     }
 
     sendMeasurements(mqttclient, current_measurements);

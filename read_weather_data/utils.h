@@ -4,6 +4,8 @@
 #include <WiFi101.h>
 #include <string>
 
+bool isConnectedToWiFi(WiFiClass &wifi);
+
 std::string IpToString(const std::uint32_t ip_addr);
 
 std::string printMacAddress(WiFiClass &wifi);
