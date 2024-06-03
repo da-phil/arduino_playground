@@ -4,3 +4,4 @@ Language: Cpp
 BasedOnStyle: Microsoft
 Standard: Cpp11
 ColumnLimit: 120
+AlwaysBreakTemplateDeclarations: Yes
