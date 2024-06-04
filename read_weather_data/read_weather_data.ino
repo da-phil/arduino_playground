@@ -69,7 +69,7 @@ MqttClient mqttclient(wificlient);
 WiFiUDP wifi_udp_client;
 
 // Initialize NTP and RTC client
-constexpr long UTC_TO_CET_OFFSET_H{2};
+constexpr int8_t UTC_TO_CET_OFFSET_H{2};
 constexpr long GMT_TO_UTC_OFFSET_S{UTC_TO_CET_OFFSET_H * 60 * 60};
 constexpr unsigned long NTP_UPDATE_INTERVAL{120U};
 NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
@@ -143,7 +143,7 @@ void printMeasurements(const Measurements &measurements)
     Serial.println(measurements.heat_index);
 }
 
-void printDateTime(RTCZero &rtc, const uint32_t timezone_offset_h)
+void printDateTime(RTCZero &rtc, const uint8_t timezone_offset_h)
 {
     char date_time[100U];
     snprintf(date_time, sizeof(date_time), "Date & time in CET: 20%u-%02u-%02u %02u:%u:%u", //
@@ -156,7 +156,7 @@ std::string createJsonStringFromMeasurement(const Measurements &measurements)
 {
     char json_str[128U];
     snprintf(json_str, sizeof(json_str),
-             "{\"timestamp\": %u, \"temperature\": %.2f,"
+             "{\"timestamp\": %lu, \"temperature\": %.2f,"
              "\"humidity\": %.2f, \"heat_index\": %.2f,"
              "\"pv_voltage\": %.2f}",
              measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.heat_index,

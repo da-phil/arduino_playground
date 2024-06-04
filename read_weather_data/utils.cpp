@@ -11,7 +11,7 @@ bool isConnectedToWiFi(WiFiClass &wifi)
 std::string IpToString(const uint32_t ip_addr)
 {
     char ip_addr_str[16U];
-    snprintf(ip_addr_str, sizeof(ip_addr_str), "%u.%u.%u.%u", //
+    snprintf(ip_addr_str, sizeof(ip_addr_str), "%lu.%lu.%lu.%lu", //
              ip_addr & 0xFF, (ip_addr >> 8) & 0xFF, (ip_addr >> 16) & 0xFF, (ip_addr >> 24) & 0xFF);
 
     return std::string{ip_addr_str};
