@@ -30,8 +30,8 @@
 #include "utils.h"
 
 // General config
-constexpr unsigned long RETRY_DELAY_MS{500U};
-constexpr unsigned int MAX_RETRIES_WIFI{2U};
+constexpr uint32_t RETRY_DELAY_MS{500U};
+constexpr uint8_t MAX_RETRIES_WIFI{2U};
 constexpr bool PRINT_MEASUREMENTS{true};
 constexpr unsigned long SAMPLING_TASK_INTERVAL_MS{2000U};
 // This delay accounts for leaving MQTT clients (particularily Telegraf)
@@ -52,13 +52,16 @@ constexpr float VOLTAGE_DIVIDER_FACTOR = 0.224F;
 constexpr WifiConfig wifi_config{.ssid = SECRETS_WIFI_SSID,
                                  .password = SECRETS_WIFI_PASSWORD,
                                  .enablePrintMacAddress = true,
-                                 .enableScanAndListWifiNetworks = false};
+                                 .enableScanAndListWifiNetworks = false,
+                                 .max_retries_wifi = MAX_RETRIES_WIFI,
+                                 .retry_delay_ms = RETRY_DELAY_MS};
 
 // MQTT config
 constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
                                  .server_port = SECRETS_MQTT_SERVER_PORT,
                                  .username = SECRETS_MQTT_USERNAME,
-                                 .password = SECRETS_MQTT_PASSWORD};
+                                 .password = SECRETS_MQTT_PASSWORD,
+                                 .mqtt_msg_send_delay_ms = MQTT_MSG_SEND_DELAY_MS};
 #define SW_VERSION "dev"
 #define LOCATION "balkon"
 constexpr const char *TOPIC_MEASUREMENTS = "watering/" LOCATION "/" SW_VERSION "/measurements";
@@ -87,63 +90,6 @@ using TxBuffer = utils::Ringbuffer<Measurements, 100U>;
 TxBuffer tx_buffer;
 
 uint32_t next_schedule_send_data = 0U;
-
-bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
-{
-    if (wifi_config.enablePrintMacAddress)
-    {
-        Serial.println(printMacAddress(WiFi).c_str());
-    }
-
-    if (wifi_config.enableScanAndListWifiNetworks)
-    {
-        Serial.println(networkListToString(WiFi).c_str());
-    }
-
-    Serial.print("Attempting to connect to SSID: ");
-    Serial.println(wifi_config.ssid);
-    unsigned int retries = 0U;
-    while ((wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED) && (retries < MAX_RETRIES_WIFI))
-    {
-        Serial.println(wifiStatusToString(wifi.status()));
-        Serial.println("Attempt to connect again...");
-        delay(RETRY_DELAY_MS);
-    }
-
-    if (isConnectedToWiFi(WiFi))
-    {
-        Serial.print("Connected to wifi with IP: ");
-        Serial.println(IpToString(wifi.localIP()).c_str());
-    }
-    else
-    {
-        Serial.println("Could not connect, giving up");
-    }
-    return isConnectedToWiFi(wifi);
-}
-
-bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer)
-{
-    Serial.print("Attempting to connect to the MQTT broker: ");
-    Serial.println(mqtt_config.server_ip);
-
-    mqttclient.setUsernamePassword(mqtt_config.username, mqtt_config.password);
-    mqttclient.connect(mqtt_config.server_ip, mqtt_config.server_port);
-    delay(100U);
-
-    if (mqttclient.connected())
-    {
-        Serial.println("Connected to MQTT broker!");
-        time_ready_for_data_transfer = millis() + MQTT_MSG_SEND_DELAY_MS;
-    }
-    else
-    {
-        Serial.print("Connection to MQTT broker failed with: ");
-        Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
-    }
-
-    return mqttclient.connected();
-}
 
 void printMeasurements(const Measurements &measurements)
 {
@@ -206,11 +152,6 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
     {
         sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
     }
-}
-
-bool readyToSchedule(const unsigned long next_schedule_interval)
-{
-    return millis() >= next_schedule_interval;
 }
 
 Measurements takeMeasurements(DHT &dht, RTCZero &rtc)
