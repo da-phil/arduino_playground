@@ -54,12 +54,12 @@ constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
                                  .username = SECRETS_MQTT_USERNAME,
                                  .password = SECRETS_MQTT_PASSWORD};
 
-#define BRANCH "dev"
+#define SW_VERSION "dev"
 #define LOCATION "balkon"
-constexpr const char *topic_measurements = "watering/" LOCATION "/" BRANCH "/measurements";
+constexpr const char *TOPIC_MEASUREMENTS = "watering/" LOCATION "/" SW_VERSION "/measurements";
 
 // DHT22 sensor config
-constexpr std::uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
+constexpr uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
 
 DHT dht(DHTPIN, DHT22);
 
