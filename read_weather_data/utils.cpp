@@ -154,14 +154,16 @@ bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, 
 
 void print(const WeatherMeasurements &measurements)
 {
-    Serial.print(F("PV voltage: "));
-    Serial.println(measurements.pv_voltage);
-    Serial.print(F("Humidity: "));
-    Serial.print(measurements.humidity);
-    Serial.print(F("%  Temperature: "));
+    Serial.print(F("Temperature: "));
     Serial.print(measurements.temp_c);
-    Serial.print(F("°C  Heat index: "));
-    Serial.println(measurements.heat_index);
+    Serial.print(F("°C, Humidity: "));
+    Serial.print(measurements.humidity);
+    Serial.print(F("°C, Pressure: "));
+    Serial.print(measurements.pressue_hpa);
+    Serial.print(F("%  Heat index: "));
+    Serial.print(measurements.heat_index);
+    Serial.print(F(", PV voltage: "));
+    Serial.println(measurements.pv_voltage);
 }
 
 void print(RTCZero &rtc, const uint8_t timezone_offset_h)
@@ -175,13 +177,13 @@ void print(RTCZero &rtc, const uint8_t timezone_offset_h)
 
 std::string createJsonStringFromMeasurement(const WeatherMeasurements &measurements)
 {
-    char json_str[128U];
+    char json_str[200U];
     snprintf(json_str, sizeof(json_str),
              "{\"timestamp\": %lu, \"temperature\": %.2f,"
-             "\"humidity\": %.2f, \"heat_index\": %.2f,"
+             "\"humidity\": %.2f, \"pressure\": %.2f,  \"heat_index\": %.2f,"
              "\"pv_voltage\": %.2f}",
-             measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.heat_index,
-             measurements.pv_voltage);
+             measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.pressue_hpa,
+             measurements.heat_index, measurements.pv_voltage);
 
     return std::string{json_str};
 }
