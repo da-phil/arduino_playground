@@ -3,5 +3,13 @@
     "board": "arduino:samd:mkr1000",
     "port": "/dev/ttyACM0",
     "programmer": "atmel_ice",
-    "output": "build"
+    "output": "build",
+    "buildPreferences": [
+        ["compiler.warning_flags.none", "-Wall -Wpedantic"],
+        ["compiler.warning_flags",""],
+        ["compiler.warning_flags.all",""],
+        ["compiler.warning_flags.extra",""],
+        ["compiler.warning_level", "extra"],
+        ["compiler.cpp.extra_flags", ""]
+    ]
 }
