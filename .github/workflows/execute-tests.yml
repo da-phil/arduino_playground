@@ -1,0 +1,96 @@
+name: Code quality test suite
+on:
+  push:
+    paths:
+      - ".github/workflows/*.yml"
+      - "read_weather_data/**"
+  pull_request:
+    paths:
+      - ".github/workflows/*.yml"
+      - "read_weather_data/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - folder: read_weather_data
+
+    steps:
+      - name: Install
+        run: sudo apt-get install -y clang-format
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Symlinks
+        run: find ${{ matrix.folder }} -type l -printf "::error::%p is a symlink. This is forbidden by the Arduino Library Specification." -exec false {} +
+      - name: Clang-format
+        run: |
+          find ${{ matrix.folder }} -iname '*.ino' -o -iname '*.[ch]pp' | xargs clang-format -i --verbose --style=file
+          git diff --exit-code
+      - name: Check URLs
+        run: |
+          grep -hREo "(http|https)://[a-zA-Z0-9./?=_%:-]*" | sort -u | while read -r URL
+          do
+            STATUS=$(curl -s -o /dev/null -I -w "%{http_code}" "$URL")
+            [ "$STATUS" -ge 400 ] && echo "::warning title=HTTP $STATUS::$URL returned $STATUS"
+          done || true
+
+  build_and_test_gcc:
+    name: GCC
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gcc: "7"
+            cxxflags: -w
+          - gcc: "8"
+            cxxflags: -w
+          - gcc: "9"
+            cxxflags: -w
+          - gcc: "10"
+            cxxflags: -w
+          - gcc: "11"
+            cxxflags: -w
+          - gcc: "12"
+            cxxflags: -w
+
+    steps:
+      - name: Install
+        run: |
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 40976EAF437D05B5 3B4FE6ACC0B21F32
+          sudo add-apt-repository -yn 'deb http://archive.ubuntu.com/ubuntu/ xenial main universe'
+          sudo add-apt-repository -yn 'deb http://archive.ubuntu.com/ubuntu/ bionic main universe'
+          sudo add-apt-repository -yn 'deb http://archive.ubuntu.com/ubuntu/ focal main universe'
+          sudo apt-get update
+          sudo apt-get install -y gcc-${{ matrix.gcc }} g++-${{ matrix.gcc }}
+        timeout-minutes: 5
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 1
+
+      - name: Configure
+        run: cmake -DCMAKE_BUILD_TYPE=Debug .
+        env:
+          CC: gcc-${{ matrix.gcc }}
+          CXX: g++-${{ matrix.gcc }}
+          CXXFLAGS: ${{ matrix.cxxflags }}
+        timeout-minutes: 1
+
+      - name: Build
+        run: cmake --build .
+        timeout-minutes: 1
+
+      - name: Test
+        run: ctest --output-on-failure --test-dir .
+        timeout-minutes: 1
