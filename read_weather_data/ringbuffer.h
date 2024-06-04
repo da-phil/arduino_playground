@@ -51,7 +51,6 @@ class Ringbuffer
         read_pos_ = 0;
         write_pos_ = 0;
         fill_level_ = 0;
-        data_.fill(T{});
     }
 
     int getMaxSize() const noexcept

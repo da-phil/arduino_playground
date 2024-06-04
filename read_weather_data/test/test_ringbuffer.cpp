@@ -6,14 +6,14 @@
 namespace
 {
 
-TEST_CASE("Test simple ringbuffer implementation")
+TEST_CASE("Test simple ringbuffer functionality")
 {
     GIVEN("Simple int ringbuffer")
     {
         utils::Ringbuffer<int> ringbuffer{12};
         const int random_value = 42;
 
-        THEN("expect same max size as given as template arg")
+        THEN("expect same max size as given during initialization")
         {
             CHECK(ringbuffer.getMaxSize() == 12);
             CHECK(ringbuffer.capacity() == 12);
@@ -39,7 +39,7 @@ TEST_CASE("Test simple ringbuffer implementation")
 
             AND_WHEN("popping one value")
             {
-                int popped_value{0};
+                int popped_value;
                 const bool popped_successful = ringbuffer.pop(popped_value);
 
                 THEN("popping succeeds, value is last one and fill level is zero again")
@@ -49,6 +49,27 @@ TEST_CASE("Test simple ringbuffer implementation")
                     CHECK(ringbuffer.getFillLevel() == 0);
                     CHECK(ringbuffer.empty());
                     CHECK(!ringbuffer.full());
+                }
+            }
+        }
+
+        WHEN("adding 9 elements")
+        {
+            for (int i = 0; i < 9; i++)
+                ringbuffer.push(i);
+
+            THEN("buffer contains 9 elements")
+            {
+                CHECK(ringbuffer.getFillLevel() == 9);
+            }
+
+            AND_WHEN("reset() is called")
+            {
+                ringbuffer.reset();
+
+                THEN("buffer is empty")
+                {
+                    CHECK(ringbuffer.empty());
                 }
             }
         }
@@ -65,9 +86,7 @@ TEST_CASE("Test ringbuffer implementation edge cases")
         WHEN("ringbuffer is filled to its capacity")
         {
             for (int i = 0; i < 12; i++)
-            {
                 ringbuffer.push(i);
-            }
 
             THEN("fill level is equal to capacity")
             {
@@ -78,7 +97,7 @@ TEST_CASE("Test ringbuffer implementation edge cases")
             AND_WHEN("one more value is pushed")
             {
                 ringbuffer.push(42);
-                THEN("ringbuffer is still full and first element is now 1")
+                THEN("ringbuffer is still full")
                 {
                     CHECK(ringbuffer.full());
                 }
