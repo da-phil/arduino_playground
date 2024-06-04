@@ -1,0 +1,13 @@
+profiles:
+  mkr1000:
+    fqbn: arduino:samd:mkr1000
+    platforms:
+      - platform: arduino:samd
+    libraries:
+      - WiFi101 (0.16.1)
+      - ArduinoMqttClient (0.6.4)
+      - DHT sensor library (0.1.8)
+      - NTPClient (3.2.1)
+      - RTCZero (1.6.0)
+
+default_profile: mkr1000

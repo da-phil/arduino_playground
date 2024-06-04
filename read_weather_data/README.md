@@ -31,6 +31,14 @@ In order to use this codebase the following Arduino libs are needed:
 * NTPClient
 * RTCZero
 
+If I didn't completely misunderstand or mess it up, you can use the following command together with the `arduino-cli` tool to install al the above-mentioned libraries by the following command for the current development platform (Arudino MKR1000):
+
+```bash
+arduino-cli compile --profile mkrwifi1010
+```
+
+If this does not work, you need to install each library individually via the library manager.
+
 #### Credentials for Wi-Fi network and MQTT broker
 
 After checking out the code make sure to adapt `arduino_secrets.h` to your network setup and credentials:
