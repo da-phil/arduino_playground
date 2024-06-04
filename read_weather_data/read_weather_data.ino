@@ -34,6 +34,9 @@ constexpr unsigned long RETRY_DELAY_MS{500U};
 constexpr unsigned int MAX_RETRIES_WIFI{2U};
 constexpr bool PRINT_MEASUREMENTS{true};
 constexpr unsigned long SAMPLING_TASK_INTERVAL_MS{2000U};
+// This delay accounts for leaving MQTT clients (particularily Telegraf)
+// enoough time to re-connect once connection to the broker was lost
+constexpr unsigned long MQTT_MSG_SEND_DELAY_MS{8000U};
 
 // Serial config
 constexpr unsigned long SERIAL_BAUDRATE{9600U};
@@ -83,6 +86,8 @@ RTCZero rtc;
 using TxBuffer = utils::Ringbuffer<Measurements, 100U>;
 TxBuffer tx_buffer;
 
+uint32_t next_schedule_send_data = 0U;
+
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
     if (wifi_config.enablePrintMacAddress)
@@ -117,7 +122,7 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     return isConnectedToWiFi(wifi);
 }
 
-bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
+bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer)
 {
     Serial.print("Attempting to connect to the MQTT broker: ");
     Serial.println(mqtt_config.server_ip);
@@ -129,6 +134,7 @@ bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
     if (mqttclient.connected())
     {
         Serial.println("Connected to MQTT broker!");
+        time_ready_for_data_transfer = millis() + MQTT_MSG_SEND_DELAY_MS;
     }
     else
     {
@@ -193,6 +199,9 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
     }
 
     Measurements measurements;
+    Serial.print("TX buffer fill level: ");
+    Serial.println(tx_buffer.getFillLevel());
+
     while (tx_buffer.pop(measurements))
     {
         sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
@@ -249,7 +258,7 @@ void setup()
 
     // attempt to connect to WiFi network and MQTT broker
     connectToWiFi(WiFi, wifi_config);
-    connectToMqttBroker(mqttclient, mqtt_config);
+    connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
 
     ntp_client.begin();
     rtc.begin();
@@ -288,11 +297,13 @@ void loop()
     if (!mqttclient.connected())
     {
         Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
-        connectToMqttBroker(mqttclient, mqtt_config);
+        connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
     }
     else
     {
-        sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, tx_buffer);
+        // call poll() regularly to allow the library to send MQTT keep alives which
+        // avoids being disconnected by the broker
+        mqttclient.poll();
     }
 
     if (readyToSchedule(next_schedule_sampling_task))
@@ -307,5 +318,11 @@ void loop()
             printDateTime(rtc, UTC_TO_CET_OFFSET_H);
             printMeasurements(current_measurements);
         }
+    }
+
+    if (readyToSchedule(next_schedule_send_data))
+    {
+        next_schedule_send_data += SAMPLING_TASK_INTERVAL_MS;
+        sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, tx_buffer);
     }
 }
