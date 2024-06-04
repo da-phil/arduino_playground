@@ -5,11 +5,11 @@
     "programmer": "atmel_ice",
     "output": "build",
     "buildPreferences": [
-        ["compiler.warning_flags.none", "-Wall -Wpedantic"],
+        ["compiler.warning_level", "none"],
         ["compiler.warning_flags",""],
+        ["compiler.warning_flags.none", "-Wall"],
         ["compiler.warning_flags.all",""],
         ["compiler.warning_flags.extra",""],
-        ["compiler.warning_level", "extra"],
         ["compiler.cpp.extra_flags", ""]
     ]
 }
