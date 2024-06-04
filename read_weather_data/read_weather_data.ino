@@ -29,9 +29,11 @@
 #include "ringbuffer.h"
 #include "utils.h"
 
+// General config
 constexpr unsigned long RETRY_DELAY_MS{500U};
 constexpr unsigned int MAX_RETRIES_WIFI{2U};
 constexpr bool PRINT_MEASUREMENTS{true};
+constexpr unsigned long SAMPLING_TASK_INTERVAL_MS{2000U};
 
 // Serial config
 constexpr unsigned long SERIAL_BAUDRATE{9600U};
@@ -54,7 +56,6 @@ constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
                                  .server_port = SECRETS_MQTT_SERVER_PORT,
                                  .username = SECRETS_MQTT_USERNAME,
                                  .password = SECRETS_MQTT_PASSWORD};
-
 #define SW_VERSION "dev"
 #define LOCATION "balkon"
 constexpr const char *TOPIC_MEASUREMENTS = "watering/" LOCATION "/" SW_VERSION "/measurements";
@@ -62,6 +63,9 @@ constexpr const char *TOPIC_MEASUREMENTS = "watering/" LOCATION "/" SW_VERSION "
 // DHT22 sensor config
 constexpr uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
 
+///////////////////////////////////////////////////////////////////////////////////////////
+// Global variables & helper functions
+///////////////////////////////////////////////////////////////////////////////////////////
 DHT dht(DHTPIN, DHT22);
 
 // Initialize WiFi & MQTT broker clients
@@ -195,8 +199,40 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
     }
 }
 
+bool readyToSchedule(const unsigned long next_schedule_interval)
+{
+    return millis() >= next_schedule_interval;
+}
+
+Measurements takeMeasurements(DHT &dht, RTCZero &rtc)
+{
+    // read the input on analog pin 0 and convert to voltage range (0 - VREF):
+    const int analog_val = analogRead(A0);
+    const float adc_voltage = analog_val * (VREF / static_cast<float>(ADC_NUM_SAMPLES));
+    const float pv_voltage = adc_voltage / VOLTAGE_DIVIDER_FACTOR;
+
+    // Reading temperature or humidity takes about 250 milliseconds!
+    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+    float humidity = dht.readHumidity();
+    float temp_c = dht.readTemperature();
+    if (isnan(humidity) || isinf(humidity) || isnan(temp_c) || isinf(temp_c))
+    {
+        Serial.println(F("Failed to read from DHT sensor!"));
+        humidity = 0.0;
+        temp_c = 0.0;
+    }
+    // Compute heat index in Celsius (isFahreheit = false)
+    const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
+
+    return Measurements{.timestamp = rtc.getEpoch(),
+                        .temp_c = temp_c,
+                        .humidity = humidity,
+                        .heat_index = heat_index,
+                        .pv_voltage = pv_voltage};
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
-// The setup routine runs once when you press reset
+// Setup function - This routine runs once when you press reset
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 void setup()
@@ -232,6 +268,8 @@ void setup()
 
 void loop()
 {
+    static uint32_t next_schedule_sampling_task = millis() + SAMPLING_TASK_INTERVAL_MS;
+
     if (!isConnectedToWiFi(WiFi))
     {
         Serial.println(wifiStatusToString(WiFi.status()));
@@ -257,37 +295,17 @@ void loop()
         sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, tx_buffer);
     }
 
-    // read the input on analog pin 0 and convert to voltage range (0 - VREF):
-    const int analog_val = analogRead(A0);
-    const float adc_voltage = analog_val * (VREF / static_cast<float>(ADC_NUM_SAMPLES));
-    const float pv_voltage = adc_voltage / VOLTAGE_DIVIDER_FACTOR;
-
-    // Reading temperature or humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float humidity = dht.readHumidity();
-    float temp_c = dht.readTemperature();
-    if (isnan(humidity) || isinf(humidity) || isnan(temp_c) || isinf(temp_c))
+    if (readyToSchedule(next_schedule_sampling_task))
     {
-        Serial.println(F("Failed to read from DHT sensor!"));
-        humidity = 0.0;
-        temp_c = 0.0;
+        next_schedule_sampling_task += SAMPLING_TASK_INTERVAL_MS;
+
+        const auto current_measurements = takeMeasurements(dht, rtc);
+        tx_buffer.push(current_measurements);
+
+        if (PRINT_MEASUREMENTS)
+        {
+            printDateTime(rtc, UTC_TO_CET_OFFSET_H);
+            printMeasurements(current_measurements);
+        }
     }
-    // Compute heat index in Celsius (isFahreheit = false)
-    const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
-
-    const Measurements current_measurements{.timestamp = rtc.getEpoch(),
-                                            .temp_c = temp_c,
-                                            .humidity = humidity,
-                                            .heat_index = heat_index,
-                                            .pv_voltage = pv_voltage};
-
-    tx_buffer.push(current_measurements);
-
-    if (PRINT_MEASUREMENTS)
-    {
-        printDateTime(rtc, UTC_TO_CET_OFFSET_H);
-        printMeasurements(current_measurements);
-    }
-
-    delay(1000);
 }
