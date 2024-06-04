@@ -198,6 +198,7 @@ Here are some how-to's and examples on how to configure Telegraf to convert MQTT
 * <https://github.com/influxdata/telegraf/tree/master/plugins/inputs/mqtt_consumer>
 * <https://www.influxdata.com/blog/how-parse-json-telegraf-influxdb-cloud>
 * <https://www.influxdata.com/blog/mqtt-topic-payload-parsing-telegraf>
+* <https://docs.influxdata.com/telegraf/v1/data_formats/input/json_v2>
 
 There is also a good German blog article about how to configure Telegraf for what we plan to do:
 

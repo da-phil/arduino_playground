@@ -26,6 +26,7 @@
 
 #include "arduino_secrets.h"
 #include "read_weather_data.h"
+#include "ringbuffer.h"
 #include "utils.h"
 
 constexpr unsigned long RETRY_DELAY_MS{500U};
@@ -74,6 +75,9 @@ constexpr long GMT_TO_UTC_OFFSET_S{UTC_TO_CET_OFFSET_H * 60 * 60};
 constexpr unsigned long NTP_UPDATE_INTERVAL{120U};
 NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
+
+using TxBuffer = utils::Ringbuffer<Measurements, 100U>;
+TxBuffer tx_buffer;
 
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
@@ -177,6 +181,20 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
     mqttclient.endMessage();
 }
 
+void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements, TxBuffer &tx_buffer)
+{
+    if (!mqttclient.connected())
+    {
+        return;
+    }
+
+    Measurements measurements;
+    while (tx_buffer.pop(measurements))
+    {
+        sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 // The setup routine runs once when you press reset
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -236,9 +254,7 @@ void loop()
     }
     else
     {
-        // call poll() regularly to allow the library to send MQTT keep alives which
-        // avoids being disconnected by the broker
-        mqttclient.poll();
+        sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, tx_buffer);
     }
 
     // read the input on analog pin 0 and convert to voltage range (0 - VREF):
@@ -265,13 +281,13 @@ void loop()
                                             .heat_index = heat_index,
                                             .pv_voltage = pv_voltage};
 
+    tx_buffer.push(current_measurements);
+
     if (PRINT_MEASUREMENTS)
     {
         printDateTime(rtc, UTC_TO_CET_OFFSET_H);
         printMeasurements(current_measurements);
     }
-
-    sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, current_measurements);
 
     delay(1000);
 }

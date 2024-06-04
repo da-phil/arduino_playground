@@ -3,6 +3,9 @@
 
 #include <array>
 
+namespace utils
+{
+
 template <class T, int max_elem>
 class Ringbuffer
 {
@@ -29,7 +32,7 @@ class Ringbuffer
 
         if (full())
         {
-            // move read position forward to avoid overwriting 
+            // move read position forward to avoid overwriting
             read_pos_ = (read_pos_ + 1) % size_;
         }
         else
@@ -73,11 +76,13 @@ class Ringbuffer
 
   private:
     const int size_{max_elem};
-    
+
     std::array<Type, max_elem> data_;
     int read_pos_{0};
     int write_pos_{0};
     int fill_level{0};
 };
+
+} // namespace utils
 
 #endif // RING_BUFFER_H

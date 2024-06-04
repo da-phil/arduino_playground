@@ -3,11 +3,14 @@
 #include "../ringbuffer.h"
 #include "doctest.h"
 
+namespace
+{
+
 TEST_CASE("Test simple ringbuffer implementation")
 {
     GIVEN("Simple int ringbuffer")
     {
-        Ringbuffer<int, 12> ringbuffer;
+        utils::Ringbuffer<int, 12> ringbuffer;
         const int random_value = 42;
 
         THEN("expect same max size as given as template arg")
@@ -56,7 +59,7 @@ TEST_CASE("Test ringbuffer implementation edge cases")
 {
     GIVEN("Simple int ringbuffer")
     {
-        Ringbuffer<int, 12> ringbuffer;
+        utils::Ringbuffer<int, 12> ringbuffer;
         const int random_value = 42;
 
         WHEN("ringbuffer is filled to its capacity")
@@ -102,3 +105,5 @@ TEST_CASE("Test ringbuffer implementation edge cases")
         }
     }
 }
+
+} // namespace
