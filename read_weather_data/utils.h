@@ -10,6 +10,8 @@
 #endif
 #include <string>
 
+#include "ringbuffer.h"
+
 struct MqttConfig
 {
     const char *server_ip;
@@ -63,6 +65,9 @@ std::string createJsonStringFromMeasurement(const WeatherMeasurements &measureme
 
 void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements,
                              const WeatherMeasurements &measurements);
+
+void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements,
+                             utils::Ringbuffer<WeatherMeasurements> &tx_buffer);
 
 bool readyToSchedule(const unsigned long next_schedule_interval);
 

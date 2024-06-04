@@ -32,14 +32,15 @@
 // General config
 constexpr uint32_t RETRY_DELAY_MS{500U};
 constexpr uint8_t MAX_RETRIES_WIFI{2U};
+constexpr uint32_t TX_BUFFER_SIZE{100U};
 constexpr bool PRINT_MEASUREMENTS{true};
-constexpr unsigned long SAMPLING_TASK_INTERVAL_MS{2000U};
+constexpr uint32_t SAMPLING_TASK_INTERVAL_MS{2000U};
 // This delay accounts for leaving MQTT clients (particularily Telegraf)
 // enoough time to re-connect once connection to the broker was lost
-constexpr unsigned long MQTT_MSG_SEND_DELAY_MS{8000U};
+constexpr uint32_t MQTT_MSG_SEND_DELAY_MS{8000U};
 
 // Serial config
-constexpr unsigned long SERIAL_BAUDRATE{9600U};
+constexpr uint32_t SERIAL_BAUDRATE{9600U};
 constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL{false};
 
 // ADC config
@@ -86,24 +87,9 @@ constexpr unsigned long NTP_UPDATE_INTERVAL{120U};
 NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
 
-using TxBuffer = utils::Ringbuffer<WeatherMeasurements>;
-TxBuffer tx_buffer{100U};
+utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
 
 uint32_t next_schedule_send_data = 0U;
-
-void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements, TxBuffer &tx_buffer)
-{
-    if (!mqttclient.connected())
-    {
-        return;
-    }
-
-    WeatherMeasurements measurements;
-    while (tx_buffer.pop(measurements))
-    {
-        sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
-    }
-}
 
 WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
 {

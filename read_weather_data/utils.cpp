@@ -199,6 +199,21 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
     mqttclient.endMessage();
 }
 
+void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements,
+                             utils::Ringbuffer<WeatherMeasurements> &tx_buffer)
+{
+    if (!mqttclient.connected())
+    {
+        return;
+    }
+
+    WeatherMeasurements measurements;
+    while (tx_buffer.pop(measurements))
+    {
+        sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
+    }
+}
+
 bool readyToSchedule(const unsigned long next_schedule_interval)
 {
     return millis() >= next_schedule_interval;

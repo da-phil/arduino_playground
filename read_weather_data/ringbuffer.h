@@ -12,7 +12,7 @@ class Ringbuffer
   public:
     using Type = T;
 
-    Ringbuffer(int max_elem) : size_{max_elem}, data_{}, read_pos_{0}, write_pos_{0}, fill_level_{0}
+    explicit Ringbuffer(std::size_t max_elem) : size_{max_elem}, data_{}, read_pos_{0}, write_pos_{0}, fill_level_{0}
     {
         data_.resize(size_);
     }
@@ -71,7 +71,7 @@ class Ringbuffer
 
     int full() const noexcept
     {
-        return fill_level_ == size_;
+        return fill_level_ == static_cast<int>(size_);
     }
 
     int capacity() const noexcept
@@ -80,7 +80,7 @@ class Ringbuffer
     }
 
   private:
-    const int size_;
+    const std::size_t size_;
 
     std::vector<Type> data_;
     int read_pos_;
