@@ -145,9 +145,6 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
     }
 
     Measurements measurements;
-    Serial.print("TX buffer fill level: ");
-    Serial.println(tx_buffer.getFillLevel());
-
     while (tx_buffer.pop(measurements))
     {
         sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
