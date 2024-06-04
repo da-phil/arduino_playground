@@ -86,8 +86,8 @@ constexpr unsigned long NTP_UPDATE_INTERVAL{120U};
 NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
 
-using TxBuffer = utils::Ringbuffer<WeatherMeasurements, 100U>;
-TxBuffer tx_buffer;
+using TxBuffer = utils::Ringbuffer<WeatherMeasurements>;
+TxBuffer tx_buffer{100U};
 
 uint32_t next_schedule_send_data = 0U;
 

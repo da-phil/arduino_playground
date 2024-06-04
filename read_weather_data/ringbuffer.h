@@ -1,16 +1,21 @@
 #ifndef RING_BUFFER_H
 #define RING_BUFFER_H
 
-#include <array>
+#include <vector>
 
 namespace utils
 {
 
-template <class T, int max_elem>
+template <class T>
 class Ringbuffer
 {
   public:
     using Type = T;
+
+    Ringbuffer(int max_elem) : size_{max_elem}, data_{}, read_pos_{0}, write_pos_{0}, fill_level_{0}
+    {
+        data_.resize(size_);
+    }
 
     bool pop(T &val) noexcept
     {
@@ -21,7 +26,7 @@ class Ringbuffer
 
         val = data_[read_pos_];
         read_pos_ = (read_pos_ + 1) % size_;
-        fill_level--;
+        fill_level_--;
         return true;
     }
 
@@ -37,7 +42,7 @@ class Ringbuffer
         }
         else
         {
-            fill_level++;
+            fill_level_++;
         }
     }
 
@@ -45,7 +50,7 @@ class Ringbuffer
     {
         read_pos_ = 0;
         write_pos_ = 0;
-        fill_level = 0;
+        fill_level_ = 0;
         data_.fill(T{});
     }
 
@@ -56,17 +61,17 @@ class Ringbuffer
 
     int getFillLevel() const noexcept
     {
-        return fill_level;
+        return fill_level_;
     }
 
     int empty() const noexcept
     {
-        return fill_level == 0;
+        return fill_level_ == 0;
     }
 
     int full() const noexcept
     {
-        return fill_level == size_;
+        return fill_level_ == size_;
     }
 
     int capacity() const noexcept
@@ -75,12 +80,12 @@ class Ringbuffer
     }
 
   private:
-    const int size_{max_elem};
+    const int size_;
 
-    std::array<Type, max_elem> data_;
-    int read_pos_{0};
-    int write_pos_{0};
-    int fill_level{0};
+    std::vector<Type> data_;
+    int read_pos_;
+    int write_pos_;
+    int fill_level_;
 };
 
 } // namespace utils

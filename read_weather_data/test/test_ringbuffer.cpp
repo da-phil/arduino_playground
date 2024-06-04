@@ -10,7 +10,7 @@ TEST_CASE("Test simple ringbuffer implementation")
 {
     GIVEN("Simple int ringbuffer")
     {
-        utils::Ringbuffer<int, 12> ringbuffer;
+        utils::Ringbuffer<int> ringbuffer{12};
         const int random_value = 42;
 
         THEN("expect same max size as given as template arg")
@@ -59,7 +59,7 @@ TEST_CASE("Test ringbuffer implementation edge cases")
 {
     GIVEN("Simple int ringbuffer")
     {
-        utils::Ringbuffer<int, 12> ringbuffer;
+        utils::Ringbuffer<int> ringbuffer{12};
         const int random_value = 42;
 
         WHEN("ringbuffer is filled to its capacity")
