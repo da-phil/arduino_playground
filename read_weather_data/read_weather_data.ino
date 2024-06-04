@@ -86,56 +86,10 @@ constexpr unsigned long NTP_UPDATE_INTERVAL{120U};
 NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
 
-using TxBuffer = utils::Ringbuffer<Measurements, 100U>;
+using TxBuffer = utils::Ringbuffer<WeatherMeasurements, 100U>;
 TxBuffer tx_buffer;
 
 uint32_t next_schedule_send_data = 0U;
-
-void printMeasurements(const Measurements &measurements)
-{
-    Serial.print(F("PV voltage: "));
-    Serial.println(measurements.pv_voltage);
-    Serial.print(F("Humidity: "));
-    Serial.print(measurements.humidity);
-    Serial.print(F("%  Temperature: "));
-    Serial.print(measurements.temp_c);
-    Serial.print(F("°C  Heat index: "));
-    Serial.println(measurements.heat_index);
-}
-
-void printDateTime(RTCZero &rtc, const uint8_t timezone_offset_h)
-{
-    char date_time[100U];
-    snprintf(date_time, sizeof(date_time), "Date & time in CET: 20%u-%02u-%02u %02u:%u:%u", //
-             rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHours() + timezone_offset_h, rtc.getMinutes(),
-             rtc.getSeconds());
-    Serial.println(date_time);
-}
-
-std::string createJsonStringFromMeasurement(const Measurements &measurements)
-{
-    char json_str[128U];
-    snprintf(json_str, sizeof(json_str),
-             "{\"timestamp\": %lu, \"temperature\": %.2f,"
-             "\"humidity\": %.2f, \"heat_index\": %.2f,"
-             "\"pv_voltage\": %.2f}",
-             measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.heat_index,
-             measurements.pv_voltage);
-
-    return std::string{json_str};
-}
-
-void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements, const Measurements &measurements)
-{
-    if (!mqttclient.connected())
-    {
-        return;
-    }
-
-    mqttclient.beginMessage(topic_measurements);
-    mqttclient.print(createJsonStringFromMeasurement(measurements).c_str());
-    mqttclient.endMessage();
-}
 
 void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements, TxBuffer &tx_buffer)
 {
@@ -144,14 +98,14 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
         return;
     }
 
-    Measurements measurements;
+    WeatherMeasurements measurements;
     while (tx_buffer.pop(measurements))
     {
         sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
     }
 }
 
-Measurements takeMeasurements(DHT &dht, RTCZero &rtc)
+WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
 {
     // read the input on analog pin 0 and convert to voltage range (0 - VREF):
     const int analog_val = analogRead(A0);
@@ -171,11 +125,12 @@ Measurements takeMeasurements(DHT &dht, RTCZero &rtc)
     // Compute heat index in Celsius (isFahreheit = false)
     const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
 
-    return Measurements{.timestamp = rtc.getEpoch(),
-                        .temp_c = temp_c,
-                        .humidity = humidity,
-                        .heat_index = heat_index,
-                        .pv_voltage = pv_voltage};
+    return WeatherMeasurements{.timestamp = rtc.getEpoch(),
+                               .temp_c = temp_c,
+                               .humidity = humidity,
+                               .pressue_hpa = 0.0F,
+                               .heat_index = heat_index,
+                               .pv_voltage = pv_voltage};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -253,8 +208,8 @@ void loop()
 
         if (PRINT_MEASUREMENTS)
         {
-            printDateTime(rtc, UTC_TO_CET_OFFSET_H);
-            printMeasurements(current_measurements);
+            print(rtc, UTC_TO_CET_OFFSET_H);
+            print(current_measurements);
         }
     }
 

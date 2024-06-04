@@ -94,7 +94,6 @@ const char *mqttErrorCodeToString(int error_code)
     }
 }
 
-
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
     if (wifi_config.enablePrintMacAddress)
@@ -110,7 +109,8 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(wifi_config.ssid);
     unsigned int retries = 0U;
-    while ((wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED) && (retries < wifi_config.max_retries_wifi))
+    while ((wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED) &&
+           (retries < wifi_config.max_retries_wifi))
     {
         Serial.println(wifiStatusToString(wifi.status()));
         Serial.println("Attempt to connect again...");
@@ -150,6 +150,53 @@ bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, 
     }
 
     return mqttclient.connected();
+}
+
+void print(const WeatherMeasurements &measurements)
+{
+    Serial.print(F("PV voltage: "));
+    Serial.println(measurements.pv_voltage);
+    Serial.print(F("Humidity: "));
+    Serial.print(measurements.humidity);
+    Serial.print(F("%  Temperature: "));
+    Serial.print(measurements.temp_c);
+    Serial.print(F("°C  Heat index: "));
+    Serial.println(measurements.heat_index);
+}
+
+void print(RTCZero &rtc, const uint8_t timezone_offset_h)
+{
+    char date_time[100U];
+    snprintf(date_time, sizeof(date_time), "Date & time in CET: 20%u-%02u-%02u %02u:%u:%u", //
+             rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHours() + timezone_offset_h, rtc.getMinutes(),
+             rtc.getSeconds());
+    Serial.println(date_time);
+}
+
+std::string createJsonStringFromMeasurement(const WeatherMeasurements &measurements)
+{
+    char json_str[128U];
+    snprintf(json_str, sizeof(json_str),
+             "{\"timestamp\": %lu, \"temperature\": %.2f,"
+             "\"humidity\": %.2f, \"heat_index\": %.2f,"
+             "\"pv_voltage\": %.2f}",
+             measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.heat_index,
+             measurements.pv_voltage);
+
+    return std::string{json_str};
+}
+
+void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements,
+                             const WeatherMeasurements &measurements)
+{
+    if (!mqttclient.connected())
+    {
+        return;
+    }
+
+    mqttclient.beginMessage(topic_measurements);
+    mqttclient.print(createJsonStringFromMeasurement(measurements).c_str());
+    mqttclient.endMessage();
 }
 
 bool readyToSchedule(const unsigned long next_schedule_interval)

@@ -2,6 +2,7 @@
 #define READ_WEATHER_DATA_UTILS_H
 
 #include <ArduinoMqttClient.h>
+#include <RTCZero.h>
 #if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
 #include <WiFiNINA.h>
 #elif defined(ARDUINO_SAMD_MKR1000)
@@ -28,6 +29,16 @@ struct WifiConfig
     uint32_t retry_delay_ms;
 };
 
+struct WeatherMeasurements
+{
+    uint32_t timestamp; /// seconds since unix epoch in UTC timezone
+    float temp_c;       /// Temperature in [°C]
+    float humidity;     /// Relative humidity [%]
+    float pressue_hpa;  /// Absolute air pressure [hPa]
+    float heat_index;   /// Heat index [°C]
+    float pv_voltage;   /// Photovoltaik panel voltage [V]
+};
+
 bool isConnectedToWiFi(WiFiClass &wifi);
 
 std::string IpToString(const uint32_t ip_addr);
@@ -43,6 +54,15 @@ const char *wifiStatusToString(uint8_t wifi_status);
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config);
 
 bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer);
+
+void print(const WeatherMeasurements &measurements);
+
+void print(RTCZero &rtc, const uint8_t timezone_offset_h);
+
+std::string createJsonStringFromMeasurement(const WeatherMeasurements &measurements);
+
+void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements,
+                             const WeatherMeasurements &measurements);
 
 bool readyToSchedule(const unsigned long next_schedule_interval);
 
