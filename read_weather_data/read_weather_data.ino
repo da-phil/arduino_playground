@@ -143,9 +143,18 @@ void printMeasurements(const Measurements &measurements)
     Serial.println(measurements.heat_index);
 }
 
-std::string createJsonObjectFromMeasurement(const Measurements &measurements)
+void printDateTime(RTCZero &rtc, const uint32_t timezone_offset_h)
 {
-    char json_str[256U];
+    char date_time[100U];
+    snprintf(date_time, sizeof(date_time), "Date & time in CET: 20%u-%02u-%02u %02u:%u:%u", //
+             rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHours() + timezone_offset_h, rtc.getMinutes(),
+             rtc.getSeconds());
+    Serial.println(date_time);
+}
+
+std::string createJsonStringFromMeasurement(const Measurements &measurements)
+{
+    char json_str[128U];
     snprintf(json_str, sizeof(json_str),
              "{\"timestamp\": %u, \"temperature\": %.2f,"
              "\"humidity\": %.2f, \"heat_index\": %.2f,"
@@ -156,7 +165,7 @@ std::string createJsonObjectFromMeasurement(const Measurements &measurements)
     return std::string{json_str};
 }
 
-void sendMeasurements(MqttClient &mqttclient, const Measurements &measurements)
+void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements, const Measurements &measurements)
 {
     if (!mqttclient.connected())
     {
@@ -164,7 +173,7 @@ void sendMeasurements(MqttClient &mqttclient, const Measurements &measurements)
     }
 
     mqttclient.beginMessage(topic_measurements);
-    mqttclient.print(createJsonObjectFromMeasurement(measurements).c_str());
+    mqttclient.print(createJsonStringFromMeasurement(measurements).c_str());
     mqttclient.endMessage();
 }
 
@@ -258,16 +267,11 @@ void loop()
 
     if (PRINT_MEASUREMENTS)
     {
+        printDateTime(rtc, UTC_TO_CET_OFFSET_H);
         printMeasurements(current_measurements);
-
-        char date_time[100U];
-        snprintf(date_time, sizeof(date_time), "RTC date & time in CET: 20%u-%02u-%02u %02u:%u:%u", //
-                 rtc.getYear(), rtc.getMonth(), rtc.getDay(),                                       //
-                 rtc.getHours() + UTC_TO_CET_OFFSET_H, rtc.getMinutes(), rtc.getSeconds());
-        Serial.println(date_time);
     }
 
-    sendMeasurements(mqttclient, current_measurements);
+    sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, current_measurements);
 
     delay(1000);
 }
