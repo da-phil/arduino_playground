@@ -20,13 +20,31 @@ std::string IpToString(const uint32_t ip_addr)
 std::string printMacAddress(WiFiClass &wifi)
 {
     std::uint8_t mac[6];
-    char mac_addr_str[32U];
-
     wifi.macAddress(mac);
-    snprintf(mac_addr_str, sizeof(mac_addr_str), "%02x:%02x:%02x:%02x:%02x:%02x", //
+    char mac_addr_str[60U];
+    snprintf(mac_addr_str, sizeof(mac_addr_str), "MAC address: %02x:%02x:%02x:%02x:%02x:%02x", //
              mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
 
     return std::string{mac_addr_str};
+}
+
+const char *wifiEncryptionToString(uint8_t encryption)
+{
+    switch (encryption)
+    {
+    case M2M_WIFI_SEC_OPEN:
+        return "Open";
+    case M2M_WIFI_SEC_WPA_PSK:
+        return "WPA_PSK";
+    case M2M_WIFI_SEC_WEP:
+        return "WEP";
+    case M2M_WIFI_SEC_802_1X:
+        return "802.1x";
+    case M2M_WIFI_SEC_INVALID:
+        [[fallthrough]];
+    default:
+        return "Invalid";
+    }
 }
 
 std::string networkListToString(WiFiClass &wifi)
@@ -40,10 +58,11 @@ std::string networkListToString(WiFiClass &wifi)
     {
         output += (std::to_string(network_num) + ") ");
         output += wifi.SSID(network_num);
-        output += "\tSignal: ";
+        output += ",  Signal: ";
         output += std::to_string(wifi.RSSI(network_num));
-        output += " dBm \tEncryption: ";
-        output += wifi.encryptionType(network_num);
+        output += " dBm,  Encryption: ";
+        output += wifiEncryptionToString(wifi.encryptionType(network_num));
+        output += "\n";
     }
     return output;
 }
@@ -121,6 +140,10 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     {
         Serial.print("Connected to wifi with IP: ");
         Serial.println(IpToString(wifi.localIP()).c_str());
+        if (wifi_config.enablePrintMacAddress)
+        {
+            Serial.println(printMacAddress(WiFi).c_str());
+        }
     }
     else
     {
