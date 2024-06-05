@@ -23,7 +23,7 @@ std::string printMacAddress(WiFiClass &wifi)
     char mac_addr_str[32U];
 
     wifi.macAddress(mac);
-    snprintf(mac_addr_str, sizeof(mac_addr_str), "%x:%x:%x:%x:%x:%x", //
+    snprintf(mac_addr_str, sizeof(mac_addr_str), "%02x:%02x:%02x:%02x:%02x:%02x", //
              mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
 
     return std::string{mac_addr_str};
