@@ -160,7 +160,7 @@ void print(const WeatherMeasurements &measurements)
     Serial.print(measurements.humidity);
     Serial.print(F("°C, Pressure: "));
     Serial.print(measurements.pressue_hpa);
-    Serial.print(F("%  Heat index: "));
+    Serial.print(F("%, Heat index: "));
     Serial.print(measurements.heat_index);
     Serial.print(F(", PV voltage: "));
     Serial.println(measurements.pv_voltage);
