@@ -47,6 +47,8 @@ std::string IpToString(const uint32_t ip_addr);
 
 std::string printMacAddress(WiFiClass &wifi);
 
+const char *wifiEncryptionToString(const uint8_t encryption);
+
 std::string networkListToString(WiFiClass &wifi);
 
 const char *mqttErrorCodeToString(int error_code);

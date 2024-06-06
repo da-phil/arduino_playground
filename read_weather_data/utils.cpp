@@ -28,10 +28,11 @@ std::string printMacAddress(WiFiClass &wifi)
     return std::string{mac_addr_str};
 }
 
-const char *wifiEncryptionToString(uint8_t encryption)
+const char *wifiEncryptionToString(const uint8_t encryption)
 {
     switch (encryption)
     {
+#if defined(ARDUINO_SAMD_MKR1000)
     case M2M_WIFI_SEC_OPEN:
         return "Open";
     case M2M_WIFI_SEC_WPA_PSK:
@@ -44,6 +45,24 @@ const char *wifiEncryptionToString(uint8_t encryption)
         [[fallthrough]];
     default:
         return "Invalid";
+#elif defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
+    case AUTH_MODE_OPEN_SYSTEM:
+        return "Open";
+    case AUTH_MODE_SHARED_KEY:
+        return "Shared Key";
+    case AUTH_MODE_WPA:
+        return "WPA";
+    case AUTH_MODE_WPA_PSK:
+        return "WPA PSK";
+    case AUTH_MODE_WPA2_PSK:
+        return "WPA2 PSK";
+    case AUTH_MODE_AUTO:
+        return "AUTO";
+    case AUTH_MODE_INVALID:
+        [[fallthrough]];
+    default:
+        return "Invalid";
+#endif
     }
 }
 
