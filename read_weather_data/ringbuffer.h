@@ -1,8 +1,6 @@
 #ifndef RING_BUFFER_H
 #define RING_BUFFER_H
 
-#include <vector>
-
 namespace utils
 {
 
@@ -12,9 +10,14 @@ class Ringbuffer
   public:
     using Type = T;
 
-    explicit Ringbuffer(std::size_t max_elem) : size_{max_elem}, data_{}, read_pos_{0}, write_pos_{0}, fill_level_{0}
+    explicit Ringbuffer(unsigned int max_elem) : size_{max_elem}, data_{nullptr}, read_pos_{0}, write_pos_{0}, fill_level_{0}
     {
-        data_.resize(size_);
+        data_ = new Type[size_]();
+    }
+
+    ~Ringbuffer()
+    {
+        delete[] data_;
     }
 
     bool pop(T &val) noexcept
@@ -79,9 +82,9 @@ class Ringbuffer
     }
 
   private:
-    const std::size_t size_;
+    const unsigned int size_;
 
-    std::vector<Type> data_;
+    Type *data_;
     int read_pos_;
     int write_pos_;
     int fill_level_;
