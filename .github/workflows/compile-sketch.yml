@@ -4,11 +4,13 @@ on:
     paths:
       - ".github/workflows/compile-sketch.yml"
       - "read_weather_data/**"
+      - "bme_280_test/**"
       - "DHT22/**"
   pull_request:
     paths:
       - ".github/workflows/compile-sketch.yml"
       - "read_weather_data/**"
+      - "bme_280_test/**"
       - "DHT22/**"
   workflow_dispatch:
   repository_dispatch:
@@ -56,13 +58,14 @@ jobs:
             ${{ matrix.board.libraries }}
             - name: DHT sensor library
             - name: Adafruit Unified Sensor
-            - name: Adafruit BME280
+            - name: Adafruit BME280 Library
             - name: ArduinoMqttClient
             - name: NTPClient
             - name: RTCZero
           sketch-paths: |
             - "read_weather_data"
             - "DHT22"
+            - "bme_280_test"
           enable-deltas-report: true
           sketches-report-path: ${{ env.SKETCHES_REPORTS_PATH }}
 
