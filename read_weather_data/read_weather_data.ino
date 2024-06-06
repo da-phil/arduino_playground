@@ -130,6 +130,7 @@ WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
 
 WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
 {
+    bme_sensor.takeForcedMeasurement();
     float temp_c = bme_sensor.readTemperature();
     float pressure_pha = bme_sensor.readPressure() / 100.0F;
     float humidity = bme_sensor.readHumidity();
@@ -151,6 +152,47 @@ WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
                                .pressue_hpa = pressure_pha,
                                .heat_index = heat_index,
                                .pv_voltage = getSolarPanelVoltage()};
+}
+
+bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, WeatherSensor weather_sensor_type)
+{
+    // init weather sensor of choice
+    bool sensor_found = false;
+    if (weather_sensor_type == WeatherSensor::DHT22)
+    {
+        dht_sensor.begin();
+        sensor_found = true;
+    }
+    else if (weather_sensor_type == WeatherSensor::BME280)
+    {
+        sensor_found = bme_sensor.begin();
+        if (sensor_found)
+        {
+            bme_sensor.setSampling(Adafruit_BME280::MODE_FORCED,
+                                   Adafruit_BME280::SAMPLING_X16, // temperature
+                                   Adafruit_BME280::SAMPLING_X16, // pressure
+                                   Adafruit_BME280::SAMPLING_X16, // humidity
+                                   Adafruit_BME280::FILTER_X4,    // IIR filter
+                                   Adafruit_BME280::STANDBY_MS_250);
+        }
+        else
+        {
+            Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
+            Serial.print("SensorID was: 0x");
+            Serial.println(bme_sensor.sensorID(), 16);
+            Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+            Serial.print("        ID of 0x56-0x58 represents a BMP 280,\n");
+            Serial.print("        ID of 0x60 represents a BME 280.\n");
+            Serial.print("        ID of 0x61 represents a BME 680.\n");
+        }
+    }
+    else
+    {
+        sensor_found = false;
+        Serial.println("No weather sensor was chosen in config!!!");
+    }
+
+    return sensor_found;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -180,35 +222,11 @@ void setup()
     analogReadResolution(ADC_RES_BITS);
     analogReference(AR_DEFAULT);
 
-    // init weather sensor of choice
-    bool sensor_found = false;
-    if (WEATHER_SENSOR == WeatherSensor::DHT22)
+    // Configure weather sensor
+    const bool sensor_initialized = initializeWeatherSensor(dht, bme_sensor, WEATHER_SENSOR);
+    if (!sensor_initialized)
     {
-        dht.begin();
-        sensor_found = true;
-    }
-    else if (WEATHER_SENSOR == WeatherSensor::BME280)
-    {
-        sensor_found = bme_sensor.begin();
-        if (!sensor_found)
-        {
-            Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
-            Serial.print("SensorID was: 0x");
-            Serial.println(bme_sensor.sensorID(), 16);
-            Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-            Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-            Serial.print("        ID of 0x60 represents a BME 280.\n");
-            Serial.print("        ID of 0x61 represents a BME 680.\n");
-        }
-    }
-    else
-    {
-        sensor_found = false;
-        Serial.println("No weather sensor was chosen in config!!! Can not continue!");
-    }
-
-    if (!sensor_found)
-    {
+        Serial.println("Weather sensor could not be initialized, can not continue!");
         while (true)
             delay(100);
     }
