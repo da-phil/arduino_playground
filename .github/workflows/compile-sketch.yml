@@ -55,6 +55,8 @@ jobs:
           libraries: |
             ${{ matrix.board.libraries }}
             - name: DHT sensor library
+            - name: Adafruit Unified Sensor
+            - name: Adafruit BME280
             - name: ArduinoMqttClient
             - name: NTPClient
             - name: RTCZero
