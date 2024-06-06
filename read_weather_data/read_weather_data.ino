@@ -10,6 +10,8 @@
   * Connect pin 4 (on the right) of the sensor to GROUND
   * Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
 */
+#include <Adafruit_BME280.h>
+#include <Adafruit_Sensor.h>
 
 #include <ArduinoMqttClient.h>
 #include <DHT.h>
@@ -38,6 +40,7 @@ constexpr uint32_t SAMPLING_TASK_INTERVAL_MS{2000U};
 // This delay accounts for leaving MQTT clients (particularily Telegraf)
 // enoough time to re-connect once connection to the broker was lost
 constexpr uint32_t MQTT_MSG_SEND_DELAY_MS{8000U};
+constexpr WeatherSensor WEATHER_SENSOR{WeatherSensor::BME280};
 
 // Serial config
 constexpr uint32_t SERIAL_BAUDRATE{9600U};
@@ -73,7 +76,9 @@ constexpr uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
 ///////////////////////////////////////////////////////////////////////////////////////////
 // Global variables & helper functions
 ///////////////////////////////////////////////////////////////////////////////////////////
+// Either use DHT22 (relatively inaccurate) or BME280 sensor:
 DHT dht(DHTPIN, DHT22);
+Adafruit_BME280 bme_sensor;
 
 // Initialize WiFi & MQTT broker clients
 WiFiClient wificlient;
@@ -91,13 +96,17 @@ utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
 
 uint32_t next_schedule_send_data = 0U;
 
-WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
+float getSolarPanelVoltage()
 {
     // read the input on analog pin 0 and convert to voltage range (0 - VREF):
     const int analog_val = analogRead(A0);
     const float adc_voltage = analog_val * (VREF / static_cast<float>(ADC_NUM_SAMPLES));
     const float pv_voltage = adc_voltage / VOLTAGE_DIVIDER_FACTOR;
+    return pv_voltage;
+}
 
+WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
+{
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     float humidity = dht.readHumidity();
@@ -116,7 +125,32 @@ WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
                                .humidity = humidity,
                                .pressue_hpa = 0.0F,
                                .heat_index = heat_index,
-                               .pv_voltage = pv_voltage};
+                               .pv_voltage = getSolarPanelVoltage()};
+}
+
+WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
+{
+    float temp_c = bme_sensor.readTemperature();
+    float pressure_pha = bme_sensor.readPressure() / 100.0F;
+    float humidity = bme_sensor.readHumidity();
+    if (isnan(humidity) || isinf(humidity) || //
+        isnan(temp_c) || isinf(temp_c) ||     //
+        isnan(pressure_pha) || isinf(pressure_pha))
+    {
+        Serial.println(F("Failed to read from BME280 sensor!"));
+        humidity = 0.0;
+        temp_c = 0.0;
+        pressure_pha = 0.0;
+    }
+    // Compute heat index in Celsius (isFahreheit = false)
+    const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
+
+    return WeatherMeasurements{.timestamp = rtc.getEpoch(),
+                               .temp_c = temp_c,
+                               .humidity = humidity,
+                               .pressue_hpa = pressure_pha,
+                               .heat_index = heat_index,
+                               .pv_voltage = getSolarPanelVoltage()};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -146,8 +180,38 @@ void setup()
     analogReadResolution(ADC_RES_BITS);
     analogReference(AR_DEFAULT);
 
-    // init DHT driver
-    dht.begin();
+    // init weather sensor of choice
+    bool sensor_found = false;
+    if (WEATHER_SENSOR == WeatherSensor::DHT22)
+    {
+        dht.begin();
+        sensor_found = true;
+    }
+    else if (WEATHER_SENSOR == WeatherSensor::BME280)
+    {
+        sensor_found = bme_sensor.begin();
+        if (!sensor_found)
+        {
+            Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
+            Serial.print("SensorID was: 0x");
+            Serial.println(bme_sensor.sensorID(), 16);
+            Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+            Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
+            Serial.print("        ID of 0x60 represents a BME 280.\n");
+            Serial.print("        ID of 0x61 represents a BME 680.\n");
+        }
+    }
+    else
+    {
+        sensor_found = false;
+        Serial.println("No weather sensor was chosen in config!!! Can not continue!");
+    }
+
+    if (!sensor_found)
+    {
+        while (true)
+            delay(100);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -189,7 +253,16 @@ void loop()
     {
         next_schedule_sampling_task += SAMPLING_TASK_INTERVAL_MS;
 
-        const auto current_measurements = takeMeasurements(dht, rtc);
+        WeatherMeasurements current_measurements;
+        if (WEATHER_SENSOR == WeatherSensor::DHT22)
+        {
+            current_measurements = takeMeasurements(dht, rtc);
+        }
+        else
+        {
+            current_measurements = takeMeasurements(bme_sensor, rtc);
+        }
+
         tx_buffer.push(current_measurements);
 
         if (PRINT_MEASUREMENTS)

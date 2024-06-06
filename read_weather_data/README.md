@@ -27,9 +27,11 @@ In order to use this codebase the following Arduino libs are needed:
 
 * WiFi101
 * ArduinoMqttClient
-* DHT sensor library
 * NTPClient
 * RTCZero
+
+If you use a DHT22 sensor you additionally need the `DHT sensor library`, for the more accurate BME280 sensor which also measures air pressure you need to
+install the `Adafruit BME280` and the `Adafruit Sensor` libraries.
 
 If I didn't completely misunderstand or mess it up, you can use the following command together with the `arduino-cli` tool to install al the above-mentioned libraries by the following command for the current development platform (Arudino MKR1000):
 
