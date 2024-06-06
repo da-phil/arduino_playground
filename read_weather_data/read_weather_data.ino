@@ -34,7 +34,7 @@
 // General config
 constexpr uint32_t RETRY_DELAY_MS{500U};
 constexpr uint8_t MAX_RETRIES_WIFI{2U};
-constexpr uint32_t TX_BUFFER_SIZE{100U};
+constexpr uint32_t TX_BUFFER_SIZE{200U};
 constexpr bool PRINT_MEASUREMENTS{true};
 constexpr uint32_t SAMPLING_TASK_INTERVAL_MS{2000U};
 // This delay accounts for leaving MQTT clients (particularily Telegraf)
