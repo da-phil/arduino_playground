@@ -110,7 +110,7 @@ float getSolarPanelVoltage()
 
 bool isMeasurementValid(const float measurement)
 {
-    return isnan(measurement) || isinf(measurement) || isnan(measurement) || isinf(measurement);
+    return !(isnan(measurement) || isinf(measurement));
 }
 
 WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
@@ -240,38 +240,40 @@ void loop()
     bool connection_established{false};
 
     ///////////////////////////////////////////////////////
-    // Wifi & MQTT connection thread
+    // Wifi & MQTT connection task - freerunning
     ///////////////////////////////////////////////////////
-    if (!isConnectedToWiFi(WiFi))
     {
-        Serial.println(wifiStatusToString(WiFi.status()));
-        connectToWiFi(WiFi, wifi_config);
-    }
-    else
-    {
-        // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
-        if (ntp_client.update())
+        if (!isConnectedToWiFi(WiFi))
         {
-            // if updated, also update RTC
-            rtc.setEpoch(static_cast<uint32_t>(ntp_client.getEpochTime()));
+            Serial.println(wifiStatusToString(WiFi.status()));
+            connectToWiFi(WiFi, wifi_config);
+        }
+        else
+        {
+            // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
+            if (ntp_client.update())
+            {
+                // if updated, also update RTC
+                rtc.setEpoch(static_cast<uint32_t>(ntp_client.getEpochTime()));
+            }
+        }
+
+        connection_established = mqttclient.connected();
+        if (!connection_established)
+        {
+            Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
+            connection_established = connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
+        }
+        else
+        {
+            // call poll() regularly to allow the library to send MQTT keep alives which
+            // avoids being disconnected by the broker
+            mqttclient.poll();
         }
     }
 
-    connection_established = mqttclient.connected();
-    if (!connection_established)
-    {
-        Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
-        connection_established = connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
-    }
-    else
-    {
-        // call poll() regularly to allow the library to send MQTT keep alives which
-        // avoids being disconnected by the broker
-        mqttclient.poll();
-    }
-
     ///////////////////////////////////////////////////////
-    // Measurement sampling thread
+    // Measurement sampling task
     ///////////////////////////////////////////////////////
     if (readyToSchedule(next_schedule_sampling_task))
     {
@@ -306,7 +308,7 @@ void loop()
     }
 
     ///////////////////////////////////////////////////////
-    // MQTT sender thread
+    // MQTT sender task
     ///////////////////////////////////////////////////////
     if (readyToSchedule(next_schedule_send_data))
     {
