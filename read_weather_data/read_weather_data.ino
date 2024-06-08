@@ -169,10 +169,10 @@ bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, We
         if (sensor_found)
         {
             bme_sensor.setSampling(Adafruit_BME280::MODE_FORCED,
-                                   Adafruit_BME280::SAMPLING_X16, // temperature
-                                   Adafruit_BME280::SAMPLING_X16, // pressure
-                                   Adafruit_BME280::SAMPLING_X16, // humidity
-                                   Adafruit_BME280::FILTER_X4,    // IIR filter
+                                   Adafruit_BME280::SAMPLING_X4, // temperature
+                                   Adafruit_BME280::SAMPLING_X1, // pressure
+                                   Adafruit_BME280::SAMPLING_X4, // humidity
+                                   Adafruit_BME280::FILTER_X4,   // IIR filter
                                    Adafruit_BME280::STANDBY_MS_250);
         }
         else
