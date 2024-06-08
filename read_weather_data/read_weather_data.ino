@@ -37,6 +37,8 @@ constexpr uint8_t MAX_RETRIES_WIFI{2U};
 constexpr uint32_t TX_BUFFER_SIZE{200U};
 constexpr bool PRINT_MEASUREMENTS{true};
 constexpr uint32_t SAMPLING_TASK_INTERVAL_MS{2000U};
+constexpr uint8_t SAMPLING_TASK_SLOWDOWN_FACTOR_WHILE_DISCONNECTED{2U};
+
 // This delay accounts for leaving MQTT clients (particularily Telegraf)
 // enoough time to re-connect once connection to the broker was lost
 constexpr uint32_t MQTT_MSG_SEND_DELAY_MS{8000U};
@@ -239,6 +241,7 @@ void setup()
 void loop()
 {
     static uint32_t next_schedule_sampling_task = millis() + SAMPLING_TASK_INTERVAL_MS;
+    bool connection_established{false};
 
     if (!isConnectedToWiFi(WiFi))
     {
@@ -255,10 +258,11 @@ void loop()
         }
     }
 
-    if (!mqttclient.connected())
+    connection_established = mqttclient.connected();
+    if (!connection_established)
     {
         Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
-        connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
+        connection_established = connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
     }
     else
     {
@@ -269,7 +273,10 @@ void loop()
 
     if (readyToSchedule(next_schedule_sampling_task))
     {
-        next_schedule_sampling_task += SAMPLING_TASK_INTERVAL_MS;
+        // slow down data acquisition frequency by 2 once we lost connection to the MQTT broker
+        next_schedule_sampling_task +=
+            connection_established ? SAMPLING_TASK_INTERVAL_MS
+                                   : SAMPLING_TASK_SLOWDOWN_FACTOR_WHILE_DISCONNECTED * SAMPLING_TASK_INTERVAL_MS;
 
         WeatherMeasurements current_measurements;
         if (WEATHER_SENSOR == WeatherSensor::DHT22)
