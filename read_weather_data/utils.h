@@ -34,6 +34,7 @@ struct WifiConfig
 struct WeatherMeasurements
 {
     uint32_t timestamp; /// seconds since unix epoch in UTC timezone
+    bool is_valid;      /// Is measurement valid
     float temp_c;       /// Temperature in [°C]
     float humidity;     /// Relative humidity [%]
     float pressue_hpa;  /// Absolute air pressure [hPa]

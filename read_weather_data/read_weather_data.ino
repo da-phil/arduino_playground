@@ -25,6 +25,7 @@
 #endif
 #include <WiFiUdp.h>
 #include <cstdio>
+#include <initializer_list>
 
 #include "arduino_secrets.h"
 #include "read_weather_data.h"
@@ -107,52 +108,43 @@ float getSolarPanelVoltage()
     return pv_voltage;
 }
 
+bool isMeasurementValid(const float measurement)
+{
+    return isnan(measurement) || isinf(measurement) || isnan(measurement) || isinf(measurement);
+}
+
 WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
 {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float humidity = dht.readHumidity();
-    float temp_c = dht.readTemperature();
-    if (isnan(humidity) || isinf(humidity) || isnan(temp_c) || isinf(temp_c))
-    {
-        Serial.println(F("Failed to read from DHT sensor!"));
-        humidity = 0.0;
-        temp_c = 0.0;
-    }
-    // Compute heat index in Celsius (isFahreheit = false)
-    const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
+    const float humidity = dht.readHumidity();
+    const float temp_c = dht.readTemperature();
+    const bool is_measurement_valid = isMeasurementValid(humidity) && isMeasurementValid(temp_c);
 
     return WeatherMeasurements{.timestamp = rtc.getEpoch(),
+                               .is_valid = is_measurement_valid,
                                .temp_c = temp_c,
                                .humidity = humidity,
                                .pressue_hpa = 0.0F,
-                               .heat_index = heat_index,
+                               .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
                                .pv_voltage = getSolarPanelVoltage()};
 }
 
 WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
 {
-    bme_sensor.takeForcedMeasurement();
-    float temp_c = bme_sensor.readTemperature();
-    float pressure_pha = bme_sensor.readPressure() / 100.0F;
-    float humidity = bme_sensor.readHumidity();
-    if (isnan(humidity) || isinf(humidity) || //
-        isnan(temp_c) || isinf(temp_c) ||     //
-        isnan(pressure_pha) || isinf(pressure_pha))
-    {
-        Serial.println(F("Failed to read from BME280 sensor!"));
-        humidity = 0.0;
-        temp_c = 0.0;
-        pressure_pha = 0.0;
-    }
-    // Compute heat index in Celsius (isFahreheit = false)
-    const float heat_index = dht.computeHeatIndex(temp_c, humidity, false);
+    const bool read_sensor_success = bme_sensor.takeForcedMeasurement();
+    const float temp_c = bme_sensor.readTemperature();
+    const float pressure_pha = bme_sensor.readPressure() / 100.0F;
+    const float humidity = bme_sensor.readHumidity();
+    const bool is_measurement_valid = read_sensor_success && isMeasurementValid(temp_c) &&
+                                      isMeasurementValid(humidity) && isMeasurementValid(pressure_pha);
 
     return WeatherMeasurements{.timestamp = rtc.getEpoch(),
+                               .is_valid = is_measurement_valid,
                                .temp_c = temp_c,
                                .humidity = humidity,
                                .pressue_hpa = pressure_pha,
-                               .heat_index = heat_index,
+                               .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
                                .pv_voltage = getSolarPanelVoltage()};
 }
 
@@ -198,7 +190,9 @@ bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, We
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+//
 // Setup function - This routine runs once when you press reset
+//
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 void setup()
@@ -235,7 +229,9 @@ void setup()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+//
 // Main loop
+//
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 void loop()
@@ -243,6 +239,9 @@ void loop()
     static uint32_t next_schedule_sampling_task = millis() + SAMPLING_TASK_INTERVAL_MS;
     bool connection_established{false};
 
+    ///////////////////////////////////////////////////////
+    // Wifi & MQTT connection thread
+    ///////////////////////////////////////////////////////
     if (!isConnectedToWiFi(WiFi))
     {
         Serial.println(wifiStatusToString(WiFi.status()));
@@ -271,6 +270,9 @@ void loop()
         mqttclient.poll();
     }
 
+    ///////////////////////////////////////////////////////
+    // Measurement sampling thread
+    ///////////////////////////////////////////////////////
     if (readyToSchedule(next_schedule_sampling_task))
     {
         // slow down data acquisition frequency by 2 once we lost connection to the MQTT broker
@@ -288,15 +290,24 @@ void loop()
             current_measurements = takeMeasurements(bme_sensor, rtc);
         }
 
-        tx_buffer.push(current_measurements);
-
-        if (PRINT_MEASUREMENTS)
+        if (current_measurements.is_valid)
         {
-            print(rtc, UTC_TO_CET_OFFSET_H);
-            print(current_measurements);
+            tx_buffer.push(current_measurements);
+            if (PRINT_MEASUREMENTS)
+            {
+                print(rtc, UTC_TO_CET_OFFSET_H);
+                print(current_measurements);
+            }
+        }
+        else
+        {
+            Serial.println(F("Failed to read a valid measurement from weather sensor!"));
         }
     }
 
+    ///////////////////////////////////////////////////////
+    // MQTT sender thread
+    ///////////////////////////////////////////////////////
     if (readyToSchedule(next_schedule_send_data))
     {
         next_schedule_send_data += SAMPLING_TASK_INTERVAL_MS;
