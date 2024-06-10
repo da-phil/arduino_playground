@@ -25,9 +25,9 @@
 #endif
 #include <WiFiUdp.h>
 #include <cstdio>
-#include <initializer_list>
 
 #include "arduino_secrets.h"
+#include "logging.h"
 #include "read_weather_data.h"
 #include "ringbuffer.h"
 #include "utils.h"
@@ -72,6 +72,7 @@ constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
 #define SW_VERSION "dev"
 #define LOCATION "balkon"
 constexpr const char *TOPIC_MEASUREMENTS = "watering/" LOCATION "/" SW_VERSION "/measurements";
+constexpr const char *TOPIC_LOGGING = "watering/" LOCATION "/" SW_VERSION "/logging";
 
 // DHT22 sensor config
 constexpr uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
@@ -98,6 +99,12 @@ RTCZero rtc;
 utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
 
 uint32_t next_schedule_send_data = 0U;
+
+SerialLoggingBackend serial_logging{
+    VerbosityMask{.debug = false, .info = true, .warning = true, .error = true, .fatal = true}};
+MqttLoggingBackend mqtt_logging{
+    VerbosityMask{.debug = false, .info = false, .warning = true, .error = true, .fatal = true}, mqttclient,
+    TOPIC_LOGGING};
 
 float getSolarPanelVoltage()
 {
@@ -207,6 +214,8 @@ void setup()
         }
     }
 
+    Logger::get().setLoggingBackends({&serial_logging, &mqtt_logging});
+
     // attempt to connect to WiFi network and MQTT broker
     connectToWiFi(WiFi, wifi_config);
     connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
@@ -222,7 +231,7 @@ void setup()
     const bool sensor_initialized = initializeWeatherSensor(dht, bme_sensor, WEATHER_SENSOR);
     if (!sensor_initialized)
     {
-        Serial.println("Weather sensor could not be initialized, can not continue!");
+        Logger::get().logFatal("Weather sensor could not be initialized, can not continue!");
         while (true)
             delay(100);
     }
@@ -245,7 +254,7 @@ void loop()
     {
         if (!isConnectedToWiFi(WiFi))
         {
-            Serial.println(wifiStatusToString(WiFi.status()));
+            Logger::get().logWarning(wifiStatusToString(WiFi.status()));
             connectToWiFi(WiFi, wifi_config);
         }
         else
@@ -261,7 +270,7 @@ void loop()
         connection_established = mqttclient.connected();
         if (!connection_established)
         {
-            Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
+            Logger::get().logWarning(mqttErrorCodeToString(mqttclient.connectError()));
             connection_established = connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
         }
         else
@@ -303,7 +312,7 @@ void loop()
         }
         else
         {
-            Serial.println(F("Failed to read a valid measurement from weather sensor!"));
+            Logger::get().logError("Failed to read a valid measurement from weather sensor!");
         }
     }
 

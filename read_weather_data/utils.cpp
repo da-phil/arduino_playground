@@ -1,6 +1,7 @@
 #include <ArduinoMqttClient.h>
 #include <cstdio>
 
+#include "logging.h"
 #include "utils.h"
 
 bool isConnectedToWiFi(WiFiClass &wifi)
@@ -136,45 +137,40 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
     if (wifi_config.enablePrintMacAddress)
     {
-        Serial.println(printMacAddress(WiFi).c_str());
+        Logger::get().logInfo(printMacAddress(WiFi).c_str());
     }
 
     if (wifi_config.enableScanAndListWifiNetworks)
     {
-        Serial.println(networkListToString(WiFi).c_str());
+        Logger::get().logInfo(networkListToString(WiFi).c_str());
     }
 
-    Serial.print("Attempting to connect to SSID: ");
-    Serial.println(wifi_config.ssid);
+    Logger::get().logInfo("Attempting to connect to SSID: ");
+    Logger::get().logInfo(wifi_config.ssid);
     unsigned int retries = 0U;
     while ((wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED) &&
            (retries < wifi_config.max_retries_wifi))
     {
-        Serial.println(wifiStatusToString(wifi.status()));
-        Serial.println("Attempt to connect again...");
+        Logger::get().logWarning(wifiStatusToString(wifi.status()));
+        Logger::get().logWarning("Attempt to connect again...");
         delay(wifi_config.retry_delay_ms);
     }
 
     if (isConnectedToWiFi(WiFi))
     {
-        Serial.print("Connected to wifi with IP: ");
-        Serial.println(IpToString(wifi.localIP()).c_str());
-        if (wifi_config.enablePrintMacAddress)
-        {
-            Serial.println(printMacAddress(WiFi).c_str());
-        }
+        Logger::get().logInfo("Connected to wifi with IP: ");
+        Logger::get().logInfo(IpToString(wifi.localIP()).c_str());
     }
     else
     {
-        Serial.println("Could not connect, giving up");
+        Logger::get().logWarning("Could not connect, giving up");
     }
     return isConnectedToWiFi(wifi);
 }
 
 bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer)
 {
-    Serial.print("Attempting to connect to the MQTT broker: ");
-    Serial.println(mqtt_config.server_ip);
+    Logger::get().logInfo("Attempting to connect to the MQTT broker: %s", mqtt_config.server_ip);
 
     mqttclient.setUsernamePassword(mqtt_config.username, mqtt_config.password);
     mqttclient.connect(mqtt_config.server_ip, mqtt_config.server_port);
@@ -182,13 +178,13 @@ bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, 
 
     if (mqttclient.connected())
     {
-        Serial.println("Connected to MQTT broker!");
+        Logger::get().logInfo("Connected to MQTT broker!");
         time_ready_for_data_transfer = millis() + mqtt_config.mqtt_msg_send_delay_ms;
     }
     else
     {
-        Serial.print("Connection to MQTT broker failed with: ");
-        Serial.println(mqttErrorCodeToString(mqttclient.connectError()));
+        Logger::get().logWarning("Connection to MQTT broker failed: %s",
+                                 mqttErrorCodeToString(mqttclient.connectError()));
     }
 
     return mqttclient.connected();
