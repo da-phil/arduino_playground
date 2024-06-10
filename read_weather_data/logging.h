@@ -4,38 +4,32 @@
 #include <ArduinoMqttClient.h>
 #include <vector>
 
-enum class VerbosityLevel
+enum class LogLevel
 {
     DEBUG,
     INFO,
     WARNING,
     ERROR,
-    FATAL
+    FATAL,
+    SILENT
 };
 
-struct VerbosityMask
+inline const char *toString(LogLevel log_level)
 {
-    bool debug;
-    bool info;
-    bool warning;
-    bool error;
-    bool fatal;
-};
-
-inline const char *toString(VerbosityLevel verbosity_level)
-{
-    switch (verbosity_level)
+    switch (log_level)
     {
-    case VerbosityLevel::DEBUG:
+    case LogLevel::DEBUG:
         return "DEBUG";
-    case VerbosityLevel::INFO:
+    case LogLevel::INFO:
         return "INFO";
-    case VerbosityLevel::WARNING:
+    case LogLevel::WARNING:
         return "WARNING";
-    case VerbosityLevel::ERROR:
+    case LogLevel::ERROR:
         return "ERROR";
-    case VerbosityLevel::FATAL:
+    case LogLevel::FATAL:
         return "FATAL";
+    case LogLevel::SILENT:
+        return "SILENT";
     default:
         return "BUG: Verbosity level unknown";
     }
@@ -47,55 +41,52 @@ class ILoggingBackend
     ILoggingBackend() = default;
     virtual ~ILoggingBackend() = default;
 
-    virtual void log(const VerbosityLevel verbosity, const char *msg) = 0;
-    virtual VerbosityMask getVerbosityMask() const = 0;
+    virtual void log(const LogLevel verbosity, const char *msg) = 0;
+    virtual LogLevel getLogLevel() const = 0;
 };
 
 class SerialLoggingBackend : public ILoggingBackend
 {
   public:
-    SerialLoggingBackend(const VerbosityMask verbosity_mask) : verbosity_mask_{verbosity_mask}
+    SerialLoggingBackend(const LogLevel log_level, const bool show_log_level = true)
+        : min_allowed_log_level_{log_level}, show_log_level_{show_log_level}
     {
     }
 
-    void log(const VerbosityLevel verbosity_level, const char *msg) override
+    void log(const LogLevel log_level, const char *msg) override
     {
-        if (((verbosity_level == VerbosityLevel::DEBUG) && verbosity_mask_.debug) ||
-            ((verbosity_level == VerbosityLevel::INFO) && verbosity_mask_.info) ||
-            ((verbosity_level == VerbosityLevel::WARNING) && verbosity_mask_.warning) ||
-            ((verbosity_level == VerbosityLevel::ERROR) && verbosity_mask_.error) ||
-            ((verbosity_level == VerbosityLevel::FATAL) && verbosity_mask_.fatal))
+        if (log_level >= min_allowed_log_level_)
         {
-            Serial.print(toString(verbosity_level));
-            Serial.print(": ");
+            if (show_log_level_)
+            {
+                Serial.print(toString(log_level));
+                Serial.print(": ");
+            }
             Serial.println(msg);
         }
     }
 
-    VerbosityMask getVerbosityMask() const override
+    LogLevel getLogLevel() const override
     {
-        return verbosity_mask_;
+        return min_allowed_log_level_;
     }
 
   private:
-    VerbosityMask verbosity_mask_;
+    LogLevel min_allowed_log_level_;
+    bool show_log_level_;
 };
 
 class MqttLoggingBackend : public ILoggingBackend
 {
   public:
-    MqttLoggingBackend(const VerbosityMask verbosity_mask, MqttClient &mqttclient, const char *mqtt_logging_topic)
-        : verbosity_mask_{verbosity_mask}, mqttclient_{mqttclient}, mqtt_logging_topic_{mqtt_logging_topic}
+    MqttLoggingBackend(const LogLevel log_level, MqttClient &mqttclient, const char *mqtt_logging_topic)
+        : min_allowed_log_level_{log_level}, mqttclient_{mqttclient}, mqtt_logging_topic_{mqtt_logging_topic}
     {
     }
 
-    void log(const VerbosityLevel verbosity_level, const char *msg) override
+    void log(const LogLevel log_level, const char *msg) override
     {
-        if (((verbosity_level == VerbosityLevel::DEBUG) && verbosity_mask_.debug) ||
-            ((verbosity_level == VerbosityLevel::INFO) && verbosity_mask_.info) ||
-            ((verbosity_level == VerbosityLevel::WARNING) && verbosity_mask_.warning) ||
-            ((verbosity_level == VerbosityLevel::ERROR) && verbosity_mask_.error) ||
-            ((verbosity_level == VerbosityLevel::FATAL) && verbosity_mask_.fatal))
+        if (log_level >= min_allowed_log_level_)
         {
             if (!mqttclient_.connected())
             {
@@ -103,23 +94,20 @@ class MqttLoggingBackend : public ILoggingBackend
             }
             char json_str[200U];
             snprintf(json_str, sizeof(json_str), "{\"timestamp\": %u, \"severity\": %s, \"text\": %s}\n", 0U,
-                     toString(verbosity_level), msg);
+                     toString(log_level), msg);
             mqttclient_.beginMessage(mqtt_logging_topic_);
-            // mqttclient_.print(toString(verbosity_level));
-            // mqttclient_.print(": ");
-            // mqttclient_.println(msg);
             mqttclient_.print(json_str);
             mqttclient_.endMessage();
         }
     }
 
-    VerbosityMask getVerbosityMask() const override
+    LogLevel getLogLevel() const override
     {
-        return verbosity_mask_;
+        return min_allowed_log_level_;
     }
 
   private:
-    VerbosityMask verbosity_mask_;
+    LogLevel min_allowed_log_level_;
     MqttClient &mqttclient_;
     const char *mqtt_logging_topic_;
 };
@@ -146,42 +134,42 @@ class Logger
     }
 
     template <typename... Args>
-    void log(const VerbosityLevel verbosity_level, const char *format, const Args... args)
+    void log(const LogLevel log_level, const char *format, const Args... args)
     {
         char buffer[LOG_MSG_MAX_SIZE];
         snprintf(buffer, sizeof(buffer), format, args...);
         for (ILoggingBackend *logger_backend : logger_backends_)
-            logger_backend->log(verbosity_level, buffer);
+            logger_backend->log(log_level, buffer);
     }
 
     template <typename... Args>
     void logDebug(const char *format, const Args... args)
     {
-        log(VerbosityLevel::DEBUG, format, args...);
+        log(LogLevel::DEBUG, format, args...);
     }
 
     template <typename... Args>
     void logInfo(const char *format, const Args... args)
     {
-        log(VerbosityLevel::INFO, format, args...);
+        log(LogLevel::INFO, format, args...);
     }
 
     template <typename... Args>
     void logWarning(const char *format, const Args... args)
     {
-        log(VerbosityLevel::WARNING, format, args...);
+        log(LogLevel::WARNING, format, args...);
     }
 
     template <typename... Args>
     void logError(const char *format, const Args... args)
     {
-        log(VerbosityLevel::ERROR, format, args...);
+        log(LogLevel::ERROR, format, args...);
     }
 
     template <typename... Args>
     void logFatal(const char *format, const Args... args)
     {
-        log(VerbosityLevel::FATAL, format, args...);
+        log(LogLevel::FATAL, format, args...);
     }
 
   private:

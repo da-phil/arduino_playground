@@ -100,11 +100,8 @@ utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
 
 uint32_t next_schedule_send_data = 0U;
 
-SerialLoggingBackend serial_logging{
-    VerbosityMask{.debug = false, .info = true, .warning = true, .error = true, .fatal = true}};
-MqttLoggingBackend mqtt_logging{
-    VerbosityMask{.debug = false, .info = false, .warning = true, .error = true, .fatal = true}, mqttclient,
-    TOPIC_LOGGING};
+SerialLoggingBackend serial_logging{LogLevel::INFO};
+MqttLoggingBackend mqtt_logging{LogLevel::WARNING, mqttclient, TOPIC_LOGGING};
 
 float getSolarPanelVoltage()
 {
@@ -178,19 +175,19 @@ bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, We
         }
         else
         {
-            Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
-            Serial.print("SensorID was: 0x");
-            Serial.println(bme_sensor.sensorID(), 16);
-            Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-            Serial.print("        ID of 0x56-0x58 represents a BMP 280,\n");
-            Serial.print("        ID of 0x60 represents a BME 280.\n");
-            Serial.print("        ID of 0x61 represents a BME 680.\n");
+            Logger::get().logError(
+                "Couldn't find a valid BME280 sensor, check wiring, address, sensor ID! SensorID was: 0x%x",
+                bme_sensor.sensorID());
+            //  ID of 0xFF probably means a bad address, a BMP 180 or BMP 085
+            //  ID of 0x56-0x58 represents a BMP 280
+            //  ID of 0x60 represents a BME 280
+            //  ID of 0x61 represents a BME 680
         }
     }
     else
     {
         sensor_found = false;
-        Serial.println("No weather sensor was chosen in config!!!");
+        Logger::get().logError("No weather sensor was chosen in config!!!");
     }
 
     return sensor_found;
