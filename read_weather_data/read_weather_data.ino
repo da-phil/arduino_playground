@@ -212,14 +212,10 @@ void setup()
         }
     }
 
-    Logger::get().setLoggingBackends({&serial_logging, &mqtt_logging});
-
-    // attempt to connect to WiFi network and MQTT broker
-    connectToWiFi(WiFi, wifi_config);
-    connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
-
-    ntp_client.begin();
     rtc.begin();
+
+    Logger::get().setLoggingBackends({&serial_logging, &mqtt_logging});
+    Logger::get().setTimeFunction([]() { return rtc.getEpoch(); });
 
     // Configure ADC
     analogReadResolution(ADC_RES_BITS);
@@ -233,6 +229,12 @@ void setup()
         while (true)
             delay(100);
     }
+
+    // attempt to connect to WiFi network and MQTT broker
+    connectToWiFi(WiFi, wifi_config);
+    connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
+
+    ntp_client.begin();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
