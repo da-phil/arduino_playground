@@ -2,7 +2,10 @@
 #define ARDUINO_PLAYGROUND_LOGGING_H
 
 #include <ArduinoMqttClient.h>
+#include <api/String.h>
 #include <vector>
+
+#include "ringbuffer.h"
 
 enum class LogLevel
 {
@@ -93,11 +96,22 @@ class MqttLoggingBackend : public ILoggingBackend
                 return;
             }
 
-            char json_str[MAX_MSG_LENGTH+32U];
+            char json_str[MAX_MSG_LENGTH];
             snprintf(json_str, sizeof(json_str), "{\"timestamp\":%u,\"level\":\"%s\",\"msg\":\"%s\"}", 0U,
                      toString(log_level), msg);
+            tx_buffer_.push(String{json_str, MAX_MSG_LENGTH});
+        }
+
+        flushData();
+    }
+
+    void flushData()
+    {
+        String str;
+        while (tx_buffer_.pop(str))
+        {
             mqttclient_.beginMessage(mqtt_logging_topic_);
-            mqttclient_.print(json_str);
+            mqttclient_.print(str.c_str());
             mqttclient_.endMessage();
         }
     }
@@ -108,10 +122,12 @@ class MqttLoggingBackend : public ILoggingBackend
     }
 
   private:
-    const unsigned int MAX_MSG_LENGTH{128U};
+    static const unsigned int MAX_MSG_LENGTH{160U};
+
     LogLevel min_allowed_log_level_;
     MqttClient &mqttclient_;
     const char *mqtt_logging_topic_;
+    utils::Ringbuffer<String> tx_buffer_{16U};
 };
 
 class Logger
