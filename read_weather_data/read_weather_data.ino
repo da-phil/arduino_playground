@@ -257,7 +257,7 @@ void loop()
         else
         {
             // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
-            if (ntp_client.update())
+            if (ntp_client.update() && ntp_client.isTimeSet())
             {
                 // if updated, also update RTC
                 rtc.setEpoch(static_cast<uint32_t>(ntp_client.getEpochTime()));
