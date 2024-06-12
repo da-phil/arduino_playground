@@ -92,8 +92,9 @@ class MqttLoggingBackend : public ILoggingBackend
             {
                 return;
             }
-            char json_str[200U];
-            snprintf(json_str, sizeof(json_str), "{\"timestamp\": %u, \"severity\": %s, \"text\": %s}\n", 0U,
+
+            char json_str[MAX_MSG_LENGTH+32U];
+            snprintf(json_str, sizeof(json_str), "{\"timestamp\":%u,\"level\":\"%s\",\"msg\":\"%s\"}", 0U,
                      toString(log_level), msg);
             mqttclient_.beginMessage(mqtt_logging_topic_);
             mqttclient_.print(json_str);
@@ -107,6 +108,7 @@ class MqttLoggingBackend : public ILoggingBackend
     }
 
   private:
+    const unsigned int MAX_MSG_LENGTH{128U};
     LogLevel min_allowed_log_level_;
     MqttClient &mqttclient_;
     const char *mqtt_logging_topic_;
