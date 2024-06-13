@@ -156,8 +156,10 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
         delay(wifi_config.retry_delay_ms);
     }
 
-    if (isConnectedToWiFi(WiFi))
+    const bool wifi_connected = isConnectedToWiFi(WiFi);
+    if (wifi_connected)
     {
+        wifi.maxLowPowerMode();
         Logger::get().logInfo("Connected to wifi with IP: ");
         Logger::get().logInfo(IpToString(wifi.localIP()).c_str());
     }
@@ -165,7 +167,8 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     {
         Logger::get().logWarning("Could not connect, giving up");
     }
-    return isConnectedToWiFi(wifi);
+
+    return wifi_connected;
 }
 
 bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer)
