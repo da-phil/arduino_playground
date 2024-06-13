@@ -157,7 +157,11 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     const bool wifi_connected = isConnectedToWiFi(WiFi);
     if (wifi_connected)
     {
+#if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
+        wifi.lowPowerMode();
+#elif defined(ARDUINO_SAMD_MKR1000)
         wifi.maxLowPowerMode();
+#endif
         Logger::get().logInfo("Connected to wifi with IP: %s", ipToString(wifi.localIP()).c_str());
     }
     else
