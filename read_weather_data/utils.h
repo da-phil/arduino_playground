@@ -15,7 +15,7 @@
 struct MqttConfig
 {
     const char *server_ip;
-    int server_port;
+    uint16_t server_port;
     const char *username;
     const char *password;
     unsigned long mqtt_msg_send_delay_ms;
@@ -25,7 +25,7 @@ struct WifiConfig
 {
     const char *ssid;
     const char *password;
-    bool enablePrintMacAddress;
+    bool enableListMacAddress;
     bool enableScanAndListWifiNetworks;
     uint8_t max_retries_wifi;
     uint32_t retry_delay_ms;
@@ -44,9 +44,9 @@ struct WeatherMeasurements
 
 bool isConnectedToWiFi(WiFiClass &wifi);
 
-std::string IpToString(const uint32_t ip_addr);
+std::string ipToString(const uint32_t ip_addr);
 
-std::string printMacAddress(WiFiClass &wifi);
+std::string macAddressToString(WiFiClass &wifi);
 
 const char *wifiEncryptionToString(const uint8_t encryption);
 

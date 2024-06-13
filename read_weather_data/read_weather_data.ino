@@ -59,7 +59,7 @@ constexpr float VOLTAGE_DIVIDER_FACTOR = 0.224F;
 // Wifi config
 constexpr WifiConfig wifi_config{.ssid = SECRETS_WIFI_SSID,
                                  .password = SECRETS_WIFI_PASSWORD,
-                                 .enablePrintMacAddress = true,
+                                 .enableListMacAddress = true,
                                  .enableScanAndListWifiNetworks = false,
                                  .max_retries_wifi = MAX_RETRIES_WIFI,
                                  .retry_delay_ms = RETRY_DELAY_MS};

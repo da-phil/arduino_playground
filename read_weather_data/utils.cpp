@@ -9,7 +9,7 @@ bool isConnectedToWiFi(WiFiClass &wifi)
     return (wifi.status() == WL_CONNECTED);
 }
 
-std::string IpToString(const uint32_t ip_addr)
+std::string ipToString(const uint32_t ip_addr)
 {
     char ip_addr_str[16U];
     snprintf(ip_addr_str, sizeof(ip_addr_str), "%lu.%lu.%lu.%lu", //
@@ -18,7 +18,7 @@ std::string IpToString(const uint32_t ip_addr)
     return std::string{ip_addr_str};
 }
 
-std::string printMacAddress(WiFiClass &wifi)
+std::string macAddressToString(WiFiClass &wifi)
 {
     std::uint8_t mac[6];
     wifi.macAddress(mac);
@@ -94,17 +94,17 @@ const char *wifiStatusToString(uint8_t wifi_status)
     case WL_NO_SHIELD:
         return "No wifi shield";
     case WL_CONNECT_FAILED:
-        return "Wifi connect failed";
+        return "Connect failed";
     case WL_CONNECTION_LOST:
-        return "Wifi connection lost";
+        return "Connection lost";
     case WL_DISCONNECTED:
-        return "Wifi disconnected";
+        return "Disconnected";
     case WL_IDLE_STATUS:
-        return "WiFi in IDLE mode";
+        return "In IDLE mode";
     case WL_CONNECTED:
         [[fallthrough]];
     default:
-        return "Wifi connected";
+        return "Connected";
     }
 }
 
@@ -135,9 +135,9 @@ const char *mqttErrorCodeToString(int error_code)
 
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
-    if (wifi_config.enablePrintMacAddress)
+    if (wifi_config.enableListMacAddress)
     {
-        Logger::get().logInfo(printMacAddress(WiFi).c_str());
+        Logger::get().logInfo("WiFi MAC address: %s", macAddressToString(WiFi).c_str());
     }
 
     if (wifi_config.enableScanAndListWifiNetworks)
@@ -145,14 +145,12 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
         Logger::get().logInfo(networkListToString(WiFi).c_str());
     }
 
-    Logger::get().logInfo("Attempting to connect to SSID: ");
-    Logger::get().logInfo(wifi_config.ssid);
+    Logger::get().logInfo("Attempting to connect to SSID: %s", wifi_config.ssid);
     unsigned int retries = 0U;
     while ((wifi.begin(wifi_config.ssid, wifi_config.password) != WL_CONNECTED) &&
            (retries < wifi_config.max_retries_wifi))
     {
-        Logger::get().logWarning(wifiStatusToString(wifi.status()));
-        Logger::get().logWarning("Attempt to connect again...");
+        Logger::get().logWarning("Status: %s. Attempting to reconnect...", wifiStatusToString(wifi.status()));
         delay(wifi_config.retry_delay_ms);
     }
 
@@ -160,12 +158,11 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     if (wifi_connected)
     {
         wifi.maxLowPowerMode();
-        Logger::get().logInfo("Connected to wifi with IP: ");
-        Logger::get().logInfo(IpToString(wifi.localIP()).c_str());
+        Logger::get().logInfo("Connected to wifi with IP: %s", ipToString(wifi.localIP()).c_str());
     }
     else
     {
-        Logger::get().logWarning("Could not connect, giving up");
+        Logger::get().logError("Could not connect, giving up");
     }
 
     return wifi_connected;
@@ -173,7 +170,8 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 
 bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer)
 {
-    Logger::get().logInfo("Attempting to connect to the MQTT broker: %s", mqtt_config.server_ip);
+    Logger::get().logInfo("Attempting to (re)connect to the MQTT broker %s:%u", mqtt_config.server_ip,
+                          mqtt_config.server_port);
 
     mqttclient.setUsernamePassword(mqtt_config.username, mqtt_config.password);
     mqttclient.connect(mqtt_config.server_ip, mqtt_config.server_port);
@@ -181,7 +179,7 @@ bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, 
 
     if (mqttclient.connected())
     {
-        Logger::get().logInfo("Connected to MQTT broker!");
+        Logger::get().logInfo("Connected to MQTT broker");
         time_ready_for_data_transfer = millis() + mqtt_config.mqtt_msg_send_delay_ms;
     }
     else
