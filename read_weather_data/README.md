@@ -217,6 +217,11 @@ There is also a good German blog article about how to configure Telegraf for wha
 My config `/etc/telegraf/telegraf-watering.conf` looks like:
 
 ```toml
+[agent]
+  interval = "10s"
+  ## If set to true, do no set the "host" tag in the telegraf agent.
+  omit_hostname = true
+
 [[outputs.influxdb_v2]]
   ## The URLs of the InfluxDB cluster nodes.
   urls = ["http://127.0.0.1:8086"]
@@ -233,6 +238,10 @@ My config `/etc/telegraf/telegraf-watering.conf` looks like:
 
   topics = ["watering/#"]
   data_format = "json_v2"
+  tagexclude = ["host"]
+  qos = 2
+  persistent_session = true
+  client_id = "influx-telegraf"
 
   [[inputs.mqtt_consumer.topic_parsing]]
     topic = "watering/+/+/+"
@@ -246,6 +255,8 @@ My config `/etc/telegraf/telegraf-watering.conf` looks like:
       timestamp_format = "unix"
       timestamp_timezone = "UTC"
 ```
+
+In order to make the telegraf service to use this very config file one needs to adapt the service definition in `/etc/systemd/system/multi-target.wants/telegraf.service` and adapt the config file there.
 
 ### Grafana
 
