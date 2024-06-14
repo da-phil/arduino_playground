@@ -137,12 +137,12 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
 {
     if (wifi_config.enableListMacAddress)
     {
-        Logger::get().logInfo("WiFi MAC address: %s", macAddressToString(WiFi).c_str());
+        Logger::get().logInfo("WiFi MAC address: %s", macAddressToString(wifi).c_str());
     }
 
     if (wifi_config.enableScanAndListWifiNetworks)
     {
-        Logger::get().logInfo(networkListToString(WiFi).c_str());
+        Logger::get().logInfo(networkListToString(wifi).c_str());
     }
 
     Logger::get().logInfo("Attempting to connect to SSID: %s", wifi_config.ssid);
@@ -154,7 +154,7 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
         delay(wifi_config.retry_delay_ms);
     }
 
-    const bool wifi_connected = isConnectedToWiFi(WiFi);
+    const bool wifi_connected = isConnectedToWiFi(wifi);
     if (wifi_connected)
     {
 #if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
