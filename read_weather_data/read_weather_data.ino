@@ -93,7 +93,7 @@ WiFiUDP wifi_udp_client;
 // Initialize NTP and RTC client
 constexpr int8_t UTC_TO_CET_OFFSET_H{2};
 constexpr long GMT_TO_UTC_OFFSET_S{UTC_TO_CET_OFFSET_H * 60 * 60};
-constexpr unsigned long NTP_UPDATE_INTERVAL{120000U};
+constexpr unsigned long NTP_UPDATE_INTERVAL{10U * 60U * 1000U};
 NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
 
