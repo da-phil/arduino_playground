@@ -91,12 +91,12 @@ class MqttLoggingBackend : public ILoggingBackend
 
     void log(const LogLevel log_level, const uint32_t timestamp, const char *msg) override
     {
+        static String log_msg{"", MAX_MSG_LENGTH};
         if (log_level >= min_allowed_log_level_)
         {
-            char json_str[MAX_MSG_LENGTH];
-            snprintf(json_str, sizeof(json_str), "{\"timestamp\":%lu,\"level\":\"%s\",\"msg\":\"%s\"}", timestamp,
+            snprintf(log_msg.begin(), MAX_MSG_LENGTH, "{\"timestamp\":%lu,\"level\":\"%s\",\"msg\":\"%s\"}", timestamp,
                      toString(log_level), msg);
-            tx_buffer_.push(String{json_str, MAX_MSG_LENGTH});
+            tx_buffer_.push(log_msg);
         }
 
         flushData();
@@ -108,7 +108,7 @@ class MqttLoggingBackend : public ILoggingBackend
         {
             return;
         }
-        
+
         String str;
         while (tx_buffer_.pop(str))
         {
