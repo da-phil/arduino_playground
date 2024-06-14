@@ -10,7 +10,8 @@ class Ringbuffer
   public:
     using Type = T;
 
-    explicit Ringbuffer(unsigned int max_elem) : size_{max_elem}, data_{nullptr}, read_pos_{0}, write_pos_{0}, fill_level_{0}
+    explicit Ringbuffer(unsigned int max_elem)
+        : size_{max_elem}, data_{nullptr}, read_pos_{0}, write_pos_{0}, fill_level_{0}
     {
         data_ = new Type[size_]();
     }
@@ -47,6 +48,11 @@ class Ringbuffer
         {
             fill_level_++;
         }
+    }
+
+    void push(T &&val) noexcept
+    {
+        push(std::move(val));
     }
 
     void reset() noexcept
