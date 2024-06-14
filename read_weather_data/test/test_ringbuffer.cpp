@@ -2,6 +2,7 @@
 
 #include "../ringbuffer.h"
 #include "doctest.h"
+#include <string>
 
 namespace
 {
@@ -39,13 +40,13 @@ TEST_CASE("Test simple ringbuffer functionality")
 
             AND_WHEN("popping one value")
             {
-                int popped_value;
-                const bool popped_successful = ringbuffer.pop(popped_value);
+                const int last_value = ringbuffer.peek();
+                const bool popped_successful = ringbuffer.pop();
 
                 THEN("popping succeeds, value is last one and fill level is zero again")
                 {
                     CHECK(popped_successful);
-                    CHECK(popped_value == random_value);
+                    CHECK(last_value == random_value);
                     CHECK(ringbuffer.getFillLevel() == 0);
                     CHECK(ringbuffer.empty());
                     CHECK(!ringbuffer.full());
@@ -104,16 +105,15 @@ TEST_CASE("Test ringbuffer implementation edge cases")
 
                 AND_WHEN("popping all values")
                 {
-                    int popped_value;
-
                     for (int i = 0; i < 11; i++)
                     {
-                        CHECK(ringbuffer.pop(popped_value));
-                        CHECK(popped_value == i + 1);
+                        INFO("Evaluation at i=", i);
+                        CHECK(ringbuffer.peek() == i + 1);
+                        CHECK(ringbuffer.pop());
                     }
 
-                    CHECK(ringbuffer.pop(popped_value));
-                    CHECK(popped_value == 42);
+                    CHECK(ringbuffer.peek() == 42);
+                    CHECK(ringbuffer.pop());
 
                     THEN("ringbuffer is empty")
                     {

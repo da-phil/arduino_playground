@@ -110,11 +110,12 @@ class MqttLoggingBackend : public ILoggingBackend
         }
 
         String str;
-        while (tx_buffer_.pop(str))
+        while (!tx_buffer_.empty())
         {
             mqttclient_.beginMessage(mqtt_logging_topic_);
-            mqttclient_.print(str.c_str());
+            mqttclient_.print(tx_buffer_.peek().c_str());
             mqttclient_.endMessage();
+            tx_buffer_.pop();
         }
     }
 

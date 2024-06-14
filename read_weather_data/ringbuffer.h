@@ -21,17 +21,22 @@ class Ringbuffer
         delete[] data_;
     }
 
-    bool pop(T &val) noexcept
+    bool pop() noexcept
     {
         if (getFillLevel() == 0)
         {
             return false;
         }
 
-        val = data_[read_pos_];
         read_pos_ = (read_pos_ + 1) % size_;
         fill_level_--;
+
         return true;
+    }
+
+    const T &peek() const noexcept
+    {
+        return data_[read_pos_];
     }
 
     void push(const T &val) noexcept
@@ -48,11 +53,6 @@ class Ringbuffer
         {
             fill_level_++;
         }
-    }
-
-    void push(T &&val) noexcept
-    {
-        push(std::move(val));
     }
 
     void reset() noexcept

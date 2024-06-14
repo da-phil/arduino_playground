@@ -252,10 +252,10 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
         return;
     }
 
-    WeatherMeasurements measurements;
-    while (tx_buffer.pop(measurements))
+    while (!tx_buffer.empty())
     {
-        sendWeatherMeasurements(mqttclient, topic_measurements, measurements);
+        sendWeatherMeasurements(mqttclient, topic_measurements, tx_buffer.peek());
+        tx_buffer.pop();
     }
 }
 
