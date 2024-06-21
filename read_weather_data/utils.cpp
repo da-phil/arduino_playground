@@ -1,4 +1,3 @@
-#include <ArduinoMqttClient.h>
 #include <cstdio>
 
 #include "logging.h"
