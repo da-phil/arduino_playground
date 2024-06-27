@@ -77,7 +77,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
-        timeout-minutes: 1
 
       - name: Configure
         run: cmake -DCMAKE_BUILD_TYPE=Debug .

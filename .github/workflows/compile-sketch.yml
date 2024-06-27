@@ -48,6 +48,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set arduino secrets
+        run: cd read_weather_data && mv arduino_secrets.h.template arduino_secrets.h
+
       - name: Compile sketches
         uses: arduino/compile-sketches@v1
         with:
