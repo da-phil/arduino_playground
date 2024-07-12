@@ -194,6 +194,17 @@ bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, We
     return sensor_found;
 }
 
+void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc)
+{
+    // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
+    if (ntp_client.update() && ntp_client.isTimeSet())
+    {
+        // if updated, also update RTC
+        rtc.setEpoch(static_cast<uint32_t>(ntp_client.getEpochTime()));
+        Logger::get().logInfo("RTC time was updated from NTP server");
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 //
 // Setup function - This routine runs once when you press reset
@@ -230,11 +241,13 @@ void setup()
             delay(100);
     }
 
-    // attempt to connect to WiFi network and MQTT broker
     connectToWiFi(WiFi, wifi_config);
-    connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
 
     ntp_client.begin();
+
+    connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
+
+    updateRtcFromNtp(ntp_client, rtc);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -259,13 +272,7 @@ void loop()
         }
         else
         {
-            // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
-            if (ntp_client.update() && ntp_client.isTimeSet())
-            {
-                // if updated, also update RTC
-                rtc.setEpoch(static_cast<uint32_t>(ntp_client.getEpochTime()));
-                Logger::get().logInfo("RTC time was updated from NTP server");
-            }
+            updateRtcFromNtp(ntp_client, rtc);
         }
 
         connection_established = mqttclient.connected();
