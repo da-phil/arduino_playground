@@ -102,7 +102,7 @@ utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
 uint32_t next_schedule_send_data = 0U;
 
 SerialLoggingBackend serial_logging{LogLevel::INFO};
-MqttLoggingBackend mqtt_logging{LogLevel::WARNING, mqttclient, TOPIC_LOGGING};
+MqttLoggingBackend mqtt_logging{LogLevel::INFO, mqttclient, TOPIC_LOGGING};
 
 float getSolarPanelVoltage()
 {
