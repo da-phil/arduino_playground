@@ -85,7 +85,8 @@ class MqttLoggingBackend : public ILoggingBackend
 {
   public:
     MqttLoggingBackend(const LogLevel log_level, MqttClient &mqttclient, const char *mqtt_logging_topic)
-        : min_allowed_log_level_{log_level}, mqttclient_{mqttclient}, mqtt_logging_topic_{mqtt_logging_topic}
+        : min_allowed_log_level_{log_level}, mqttclient_{mqttclient}, mqtt_logging_topic_{mqtt_logging_topic},
+          tx_buffer_{MAX_MSGS_IN_TX_BUFFER}
     {
     }
 
@@ -130,7 +131,7 @@ class MqttLoggingBackend : public ILoggingBackend
     LogLevel min_allowed_log_level_;
     MqttClient &mqttclient_;
     const char *mqtt_logging_topic_;
-    utils::Ringbuffer<String> tx_buffer_{16U};
+    utils::Ringbuffer<Msg> tx_buffer_;
 };
 
 class Logger
