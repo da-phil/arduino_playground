@@ -11,9 +11,8 @@ class Ringbuffer
     using Type = T;
 
     explicit Ringbuffer(unsigned int max_elem)
-        : size_{max_elem}, data_{nullptr}, read_pos_{0}, write_pos_{0}, fill_level_{0}
+        : size_{max_elem}, data_{new Type[size_]()}, read_pos_{0}, write_pos_{0}, fill_level_{0}
     {
-        data_ = new Type[size_]();
     }
 
     ~Ringbuffer()
