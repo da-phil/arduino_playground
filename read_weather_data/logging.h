@@ -2,9 +2,8 @@
 #define ARDUINO_PLAYGROUND_LOGGING_H
 
 #include <ArduinoMqttClient.h>
-#include <api/String.h>
+#include <array>
 #include <functional>
-#include <vector>
 
 #include "ringbuffer.h"
 
@@ -92,9 +91,9 @@ class MqttLoggingBackend : public ILoggingBackend
 
     void log(const LogLevel log_level, const uint32_t timestamp, const char *msg) override
     {
-        static String log_msg{"", MAX_MSG_LENGTH};
         if (log_level >= min_allowed_log_level_)
         {
+            Msg log_msg;
             snprintf(log_msg.begin(), MAX_MSG_LENGTH, "{\"timestamp\":%lu,\"level\":\"%s\",\"msg\":\"%s\"}", timestamp,
                      toString(log_level), msg);
             tx_buffer_.push(log_msg);
@@ -110,11 +109,10 @@ class MqttLoggingBackend : public ILoggingBackend
             return;
         }
 
-        String str;
         while (!tx_buffer_.empty())
         {
             mqttclient_.beginMessage(mqtt_logging_topic_);
-            mqttclient_.print(tx_buffer_.peek().c_str());
+            mqttclient_.print(tx_buffer_.peek().data());
             mqttclient_.endMessage();
             tx_buffer_.pop();
         }
@@ -126,7 +124,9 @@ class MqttLoggingBackend : public ILoggingBackend
     }
 
   private:
-    static const unsigned int MAX_MSG_LENGTH{160U};
+    static const unsigned int MAX_MSG_LENGTH{128U};
+    static const unsigned int MAX_MSGS_IN_TX_BUFFER{20U};
+    using Msg = std::array<char, MAX_MSG_LENGTH>;
 
     LogLevel min_allowed_log_level_;
     MqttClient &mqttclient_;
@@ -137,7 +137,8 @@ class MqttLoggingBackend : public ILoggingBackend
 class Logger
 {
   public:
-    using LoggingBackends = std::vector<ILoggingBackend *>;
+    constexpr static std::size_t MaxLoggingBackends = 4;
+    using LoggingBackends = std::array<ILoggingBackend *, MaxLoggingBackends>;
     using UnixEpochTimestamp = uint32_t;
 
     Logger(Logger &) = delete;
@@ -168,7 +169,12 @@ class Logger
         const uint32_t timestamp = time_function_ ? time_function_() : 0U;
         snprintf(buffer, sizeof(buffer), format, args...);
         for (ILoggingBackend *logger_backend : logger_backends_)
-            logger_backend->log(log_level, timestamp, buffer);
+        {
+            if (logger_backend)
+            {
+                logger_backend->log(log_level, timestamp, buffer);
+            }
+        }
     }
 
     template <typename... Args>
