@@ -94,8 +94,9 @@ class MqttLoggingBackend : public ILoggingBackend
         if (log_level >= min_allowed_log_level_)
         {
             Msg log_msg;
-            snprintf(log_msg.begin(), MAX_MSG_LENGTH, "{\"timestamp\":%lu,\"level\":\"%s\",\"msg\":\"%s\"}", timestamp,
-                     toString(log_level), msg);
+            snprintf(log_msg.begin(), MAX_MSG_LENGTH,
+                     "{\"timestamp\":%lu,\"level\":\"%s\",\"msg\":\"%s\"}", //
+                     timestamp, toString(log_level), msg);
             tx_buffer_.push(log_msg);
         }
 
