@@ -258,6 +258,23 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
     }
 }
 
+bool isFloatValueValid(const float value)
+{
+    return !(isnan(value) || isinf(value));
+}
+
+bool areMeasurementsPlausible(const WeatherMeasurements &measurements)
+{
+    return (isFloatValueValid(measurements.temp_c) &&                                                      //
+            (measurements.temp_c > -40.0F) && (measurements.temp_c <= 50.0F) &&                            //
+            isFloatValueValid(measurements.humidity) &&                                                    //
+            (measurements.humidity > 0.0F) && (measurements.humidity <= 100.0F) &&                         //
+            isFloatValueValid(measurements.pressue_hpa) &&                                                 //
+            (measurements.pressue_hpa >= 900.0F) && (measurements.pressue_hpa <= PRESSURE_SEALEVEL_HPA) && //
+            isFloatValueValid(measurements.pv_voltage) &&                                                  //
+            (measurements.pv_voltage >= 0.0F && measurements.pv_voltage <= 14.0F));
+}
+
 bool readyToSchedule(const unsigned long next_schedule_interval)
 {
     return millis() >= next_schedule_interval;

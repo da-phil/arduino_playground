@@ -114,26 +114,23 @@ float getSolarPanelVoltage()
     return pv_voltage;
 }
 
-bool isMeasurementValid(const float measurement)
-{
-    return !(isnan(measurement) || isinf(measurement));
-}
-
 WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
 {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     const float humidity = dht.readHumidity();
     const float temp_c = dht.readTemperature();
-    const bool is_measurement_valid = isMeasurementValid(humidity) && isMeasurementValid(temp_c);
 
-    return WeatherMeasurements{.timestamp = rtc.getEpoch(),
-                               .is_valid = is_measurement_valid,
-                               .temp_c = temp_c,
-                               .humidity = humidity,
-                               .pressue_hpa = 0.0F,
-                               .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
-                               .pv_voltage = getSolarPanelVoltage()};
+    WeatherMeasurements measurements{.timestamp = rtc.getEpoch(),
+                                     .is_valid = false,
+                                     .temp_c = temp_c,
+                                     .humidity = humidity,
+                                     .pressue_hpa = PRESSURE_SEALEVEL_HPA,
+                                     .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
+                                     .pv_voltage = getSolarPanelVoltage()};
+    measurements.is_valid = areMeasurementsPlausible(measurements);
+
+    return measurements;
 }
 
 WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
@@ -142,16 +139,17 @@ WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
     const float temp_c = bme_sensor.readTemperature();
     const float pressure_pha = bme_sensor.readPressure() / 100.0F;
     const float humidity = bme_sensor.readHumidity();
-    const bool is_measurement_valid = read_sensor_success && isMeasurementValid(temp_c) &&
-                                      isMeasurementValid(humidity) && isMeasurementValid(pressure_pha);
 
-    return WeatherMeasurements{.timestamp = rtc.getEpoch(),
-                               .is_valid = is_measurement_valid,
-                               .temp_c = temp_c,
-                               .humidity = humidity,
-                               .pressue_hpa = pressure_pha,
-                               .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
-                               .pv_voltage = getSolarPanelVoltage()};
+    WeatherMeasurements measurements{.timestamp = rtc.getEpoch(),
+                                     .is_valid = false,
+                                     .temp_c = temp_c,
+                                     .humidity = humidity,
+                                     .pressue_hpa = pressure_pha,
+                                     .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
+                                     .pv_voltage = getSolarPanelVoltage()};
+    measurements.is_valid = read_sensor_success && areMeasurementsPlausible(measurements);
+
+    return measurements;
 }
 
 bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, WeatherSensor weather_sensor_type)

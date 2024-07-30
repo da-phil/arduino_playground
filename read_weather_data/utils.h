@@ -12,6 +12,8 @@
 
 #include "ringbuffer.h"
 
+constexpr float PRESSURE_SEALEVEL_HPA{1013.25F};
+
 struct MqttConfig
 {
     const char *server_ip;
@@ -71,6 +73,10 @@ void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measureme
 
 void sendWeatherMeasurements(MqttClient &mqttclient, const char *topic_measurements,
                              utils::Ringbuffer<WeatherMeasurements> &tx_buffer);
+
+bool isFloatValueValid(const float value);
+
+bool areMeasurementsPlausible(const WeatherMeasurements &measurements);
 
 bool readyToSchedule(const unsigned long next_schedule_interval);
 
