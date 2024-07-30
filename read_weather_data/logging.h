@@ -104,12 +104,7 @@ class MqttLoggingBackend : public ILoggingBackend
 
     void flushData()
     {
-        if (!mqttclient_.connected())
-        {
-            return;
-        }
-
-        while (!tx_buffer_.empty())
+        while (mqttclient_.connected() && !tx_buffer_.empty())
         {
             mqttclient_.beginMessage(mqtt_logging_topic_);
             mqttclient_.print(tx_buffer_.peek().data());
