@@ -246,7 +246,9 @@ void setup()
     {
         Logger::get().logFatal("Weather sensor could not be initialized, can not continue!");
         while (true)
+        {
             delay(100);
+        }
     }
 
     connectToWiFi(WiFi, wifi_config);
