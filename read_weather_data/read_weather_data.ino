@@ -41,6 +41,7 @@ constexpr bool PRINT_MEASUREMENTS{true};
 constexpr uint32_t SAMPLING_TASK_INTERVAL_MS{2U * 1000U};
 constexpr uint32_t DATA_TRANSMISSION_TASK_INTERVAL_MS{15U * 1000U};
 constexpr uint8_t SAMPLING_TASK_SLOWDOWN_FACTOR_WHILE_DISCONNECTED{2U};
+constexpr uint32_t MAX_NTP_RTC_TIMEDIFF_S{10U};
 
 // This delay accounts for leaving MQTT clients (particularily Telegraf)
 // enoough time to re-connect once connection to the broker was lost
@@ -193,13 +194,21 @@ bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, We
     return sensor_found;
 }
 
-void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc)
+void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc, bool first_update = false)
 {
     // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
-    if (ntp_client.update() && ntp_client.isTimeSet())
+    const bool update_is_due{ntp_client.update()};
+    const bool time_update_successfull{ntp_client.isTimeSet()};
+    if (update_is_due && time_update_successfull)
     {
+        const auto epoch_update_from_ntp_s{static_cast<uint32_t>(ntp_client.getEpochTime())};
+        const auto time_diff_s{abs(rtc.getEpoch() - epoch_update_from_ntp_s)};
+        if ((time_diff_s > MAX_NTP_RTC_TIMEDIFF_S) && !first_update)
+        {
+            Logger::get().logWarning("NTP time update significantly differs from RTC time: %us", time_diff_s);
+        }
         // if updated, also update RTC
-        rtc.setEpoch(static_cast<uint32_t>(ntp_client.getEpochTime()));
+        rtc.setEpoch(epoch_update_from_ntp_s);
         Logger::get().logInfo("RTC time was updated from NTP server");
     }
 }
@@ -246,7 +255,7 @@ void setup()
 
     connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
 
-    updateRtcFromNtp(ntp_client, rtc);
+    updateRtcFromNtp(ntp_client, rtc, true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -271,7 +280,7 @@ void loop()
         }
         else
         {
-            updateRtcFromNtp(ntp_client, rtc);
+            updateRtcFromNtp(ntp_client, rtc, false);
         }
 
         connection_established = mqttclient.connected();
