@@ -194,19 +194,23 @@ bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, We
     return sensor_found;
 }
 
-void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc, bool first_update = false)
+void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc, bool is_first_update = false)
 {
     // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
-    const bool update_is_due{ntp_client.update()};
-    const bool time_update_successfull{ntp_client.isTimeSet()};
-    if (update_is_due && time_update_successfull)
+    const bool ntp_update_is_due{ntp_client.update()};
+    const bool ntp_update_successfull{ntp_client.isTimeSet()};
+
+    if (ntp_update_is_due && ntp_update_successfull)
     {
-        const auto epoch_update_from_ntp_s{static_cast<uint32_t>(ntp_client.getEpochTime())};
-        const auto time_diff_s{abs(rtc.getEpoch() - epoch_update_from_ntp_s)};
-        if ((time_diff_s > MAX_NTP_RTC_TIMEDIFF_S) && !first_update)
+        const auto epoch_update_from_ntp_s{ntp_client.getEpochTime()};
+        const auto epoch_time_rtc_s{rtc.getEpoch()};
+        const auto time_diff_s{static_cast<int32_t>(epoch_update_from_ntp_s) - static_cast<int32_t>(epoch_time_rtc_s)};
+        if ((static_cast<uint32_t>(abs(time_diff_s)) > MAX_NTP_RTC_TIMEDIFF_S) && !is_first_update)
         {
-            Logger::get().logWarning("NTP time update significantly differs from RTC time: %us", time_diff_s);
+            Logger::get().logWarning("NTP time (%lu) significantly differs from RTC time (%ld)",
+                                     epoch_update_from_ntp_s, epoch_time_rtc_s);
         }
+
         // if updated, also update RTC
         rtc.setEpoch(epoch_update_from_ntp_s);
         Logger::get().logInfo("RTC time was updated from NTP server");
