@@ -136,6 +136,7 @@ class Logger
     constexpr static std::size_t MaxLoggingBackends = 4;
     using LoggingBackends = std::array<ILoggingBackend *, MaxLoggingBackends>;
     using UnixEpochTimestamp = uint32_t;
+    using UnixEpochTimeFunction = std::function<UnixEpochTimestamp(void)>;
 
     Logger(Logger &) = delete;
     Logger(Logger &&) = delete;
@@ -153,7 +154,7 @@ class Logger
         logger_backends_ = logger_backends;
     }
 
-    void setTimeFunction(const std::function<UnixEpochTimestamp(void)> &time_function)
+    void setTimeFunction(const UnixEpochTimeFunction &time_function)
     {
         time_function_ = time_function;
     }
@@ -208,7 +209,7 @@ class Logger
 
     const unsigned int LOG_MSG_MAX_SIZE{120U};
     LoggingBackends logger_backends_;
-    std::function<UnixEpochTimestamp(void)> time_function_;
+    UnixEpochTimeFunction time_function_;
 };
 
 #endif // ARDUINO_PLAYGROUND_LOGGING_H
