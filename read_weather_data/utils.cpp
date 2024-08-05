@@ -218,11 +218,10 @@ void print(RTCZero &rtc, const uint8_t timezone_offset_h)
 
 std::string createJsonStringFromMeasurement(const WeatherMeasurements &measurements)
 {
-    char json_str[200U];
+    char json_str[128U];
     snprintf(json_str, sizeof(json_str),
-             "{\"timestamp\": %lu, \"temperature\": %.2f,"
-             "\"humidity\": %.2f, \"pressure\": %.2f,  \"heat_index\": %.2f,"
-             "\"pv_voltage\": %.2f}",
+             "{\"timestamp\":%lu,\"temperature\":%.2f,\"humidity\":%.2f,"
+             "\"pressure\":%.2f,\"heat_index\":%.2f,\"pv_voltage\":%.2f}",
              measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.pressue_hpa,
              measurements.heat_index, measurements.pv_voltage);
 
