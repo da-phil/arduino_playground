@@ -31,9 +31,11 @@
 #include "logging.h"
 #include "read_weather_data.h"
 #include "ringbuffer.h"
+#include "scheduler.h"
 #include "utils.h"
 
 // General config
+constexpr uint32_t BUSY_LOOP_DELAY_MS{10U};
 constexpr uint32_t RETRY_DELAY_MS{500U};
 constexpr uint8_t MAX_RETRIES_WIFI{2U};
 constexpr uint32_t TX_BUFFER_SIZE{200U};
@@ -70,8 +72,7 @@ constexpr WifiConfig wifi_config{.ssid = SECRETS_WIFI_SSID,
 constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
                                  .server_port = SECRETS_MQTT_SERVER_PORT,
                                  .username = SECRETS_MQTT_USERNAME,
-                                 .password = SECRETS_MQTT_PASSWORD,
-                                 .mqtt_msg_send_delay_ms = MQTT_MSG_SEND_DELAY_MS};
+                                 .password = SECRETS_MQTT_PASSWORD};
 #define SW_VERSION "dev"
 #define LOCATION "balkon"
 constexpr const char *TOPIC_MEASUREMENTS = "watering/" LOCATION "/" SW_VERSION "/measurements";
@@ -100,9 +101,6 @@ NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
 RTCZero rtc;
 
 utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
-
-uint32_t next_schedule_send_data = 0U;
-
 SerialLoggingBackend serial_logging{LogLevel::INFO};
 MqttLoggingBackend mqtt_logging{LogLevel::INFO, mqttclient, TOPIC_LOGGING};
 
@@ -217,6 +215,63 @@ void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc, bool is_first_update 
     }
 }
 
+void samplingTask()
+{
+    WeatherMeasurements current_measurements;
+    if (WEATHER_SENSOR == WeatherSensor::DHT22)
+    {
+        current_measurements = takeMeasurements(dht, rtc);
+    }
+    else
+    {
+        current_measurements = takeMeasurements(bme_sensor, rtc);
+    }
+
+    if (current_measurements.is_valid)
+    {
+        tx_buffer.push(current_measurements);
+        if (PRINT_MEASUREMENTS)
+        {
+            print(rtc, UTC_TO_CET_OFFSET_H);
+            print(current_measurements);
+        }
+    }
+    else
+    {
+        Logger::get().logError("Failed to read a valid measurement from weather sensor!");
+    }
+}
+
+void networkConnectionTask()
+{
+    if (!isConnectedToWiFi(WiFi))
+    {
+        Logger::get().logWarning(wifiStatusToString(WiFi.status()));
+        connectToWiFi(WiFi, wifi_config);
+    }
+    else
+    {
+        updateRtcFromNtp(ntp_client, rtc, false);
+    }
+
+    bool connection_established{mqttclient.connected()};
+    if (!connection_established)
+    {
+        Logger::get().logWarning(mqttErrorCodeToString(mqttclient.connectError()));
+        connection_established = connectToMqttBroker(mqttclient, mqtt_config);
+    }
+    else
+    {
+        // call poll() regularly to allow the library to send MQTT keep alives which
+        // avoids being disconnected by the broker
+        mqttclient.poll();
+    }
+}
+Scheduler<unsigned long> network_connection_task{BUSY_LOOP_DELAY_MS, millis, networkConnectionTask};
+Scheduler<unsigned long> sampling_task{SAMPLING_TASK_INTERVAL_MS, millis, samplingTask};
+Scheduler<unsigned long> mqtt_sender_task{DATA_TRANSMISSION_TASK_INTERVAL_MS, millis,
+                                          []() { sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, tx_buffer); }};
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 //
 // Setup function - This routine runs once when you press reset
@@ -231,7 +286,7 @@ void setup()
     {
         while (!Serial)
         {
-            delay(10);
+            delay(BUSY_LOOP_DELAY_MS);
         }
     }
 
@@ -251,16 +306,13 @@ void setup()
         Logger::get().logFatal("Weather sensor could not be initialized, can not continue!");
         while (true)
         {
-            delay(100);
+            delay(BUSY_LOOP_DELAY_MS);
         }
     }
 
     connectToWiFi(WiFi, wifi_config);
-
     ntp_client.begin();
-
-    connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
-
+    connectToMqttBroker(mqttclient, mqtt_config);
     updateRtcFromNtp(ntp_client, rtc, true);
 }
 
@@ -272,78 +324,21 @@ void setup()
 
 void loop()
 {
-    static uint32_t next_schedule_sampling_task = millis() + SAMPLING_TASK_INTERVAL_MS;
-    bool connection_established{false};
-
-    ///////////////////////////////////////////////////////
     // Wifi & MQTT connection task - freerunning
-    ///////////////////////////////////////////////////////
+    bool connection_established_before{mqttclient.connected()};
+    network_connection_task.executeIfReady();
+    if (!connection_established_before && mqttclient.connected())
     {
-        if (!isConnectedToWiFi(WiFi))
-        {
-            Logger::get().logWarning(wifiStatusToString(WiFi.status()));
-            connectToWiFi(WiFi, wifi_config);
-        }
-        else
-        {
-            updateRtcFromNtp(ntp_client, rtc, false);
-        }
-
-        connection_established = mqttclient.connected();
-        if (!connection_established)
-        {
-            Logger::get().logWarning(mqttErrorCodeToString(mqttclient.connectError()));
-            connection_established = connectToMqttBroker(mqttclient, mqtt_config, next_schedule_send_data);
-        }
-        else
-        {
-            // call poll() regularly to allow the library to send MQTT keep alives which
-            // avoids being disconnected by the broker
-            mqttclient.poll();
-        }
+        mqtt_sender_task.extendCurrentInterval(MQTT_MSG_SEND_DELAY_MS);
     }
 
-    ///////////////////////////////////////////////////////
     // Measurement sampling task
-    ///////////////////////////////////////////////////////
-    if (readyToSchedule(next_schedule_sampling_task))
-    {
-        // slow down data acquisition frequency by 2 once we lost connection to the MQTT broker
-        next_schedule_sampling_task +=
-            connection_established ? SAMPLING_TASK_INTERVAL_MS
-                                   : SAMPLING_TASK_SLOWDOWN_FACTOR_WHILE_DISCONNECTED * SAMPLING_TASK_INTERVAL_MS;
+    sampling_task.executeIfReady();
 
-        WeatherMeasurements current_measurements;
-        if (WEATHER_SENSOR == WeatherSensor::DHT22)
-        {
-            current_measurements = takeMeasurements(dht, rtc);
-        }
-        else
-        {
-            current_measurements = takeMeasurements(bme_sensor, rtc);
-        }
+    sampling_task.setInterval(mqttclient.connected()
+                                  ? SAMPLING_TASK_INTERVAL_MS
+                                  : SAMPLING_TASK_SLOWDOWN_FACTOR_WHILE_DISCONNECTED * SAMPLING_TASK_INTERVAL_MS);
 
-        if (current_measurements.is_valid)
-        {
-            tx_buffer.push(current_measurements);
-            if (PRINT_MEASUREMENTS)
-            {
-                print(rtc, UTC_TO_CET_OFFSET_H);
-                print(current_measurements);
-            }
-        }
-        else
-        {
-            Logger::get().logError("Failed to read a valid measurement from weather sensor!");
-        }
-    }
-
-    ///////////////////////////////////////////////////////
     // MQTT sender task
-    ///////////////////////////////////////////////////////
-    if (readyToSchedule(next_schedule_send_data))
-    {
-        next_schedule_send_data += DATA_TRANSMISSION_TASK_INTERVAL_MS;
-        sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, tx_buffer);
-    }
+    mqtt_sender_task.executeIfReady();
 }

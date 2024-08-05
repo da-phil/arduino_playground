@@ -171,7 +171,7 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     return wifi_connected;
 }
 
-bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer)
+bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config)
 {
     Logger::get().logInfo("Attempting to (re)connect to the MQTT broker %s:%u", mqtt_config.server_ip,
                           mqtt_config.server_port);
@@ -183,7 +183,6 @@ bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, 
     if (mqttclient.connected())
     {
         Logger::get().logInfo("Connected to MQTT broker");
-        time_ready_for_data_transfer = millis() + mqtt_config.mqtt_msg_send_delay_ms;
     }
     else
     {

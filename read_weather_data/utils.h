@@ -20,7 +20,6 @@ struct MqttConfig
     uint16_t server_port;
     const char *username;
     const char *password;
-    unsigned long mqtt_msg_send_delay_ms;
 };
 
 struct WifiConfig
@@ -60,7 +59,7 @@ const char *wifiStatusToString(uint8_t wifi_status);
 
 bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config);
 
-bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config, uint32_t &time_ready_for_data_transfer);
+bool connectToMqttBroker(MqttClient &mqttclient, const MqttConfig &mqtt_config);
 
 void print(const WeatherMeasurements &measurements);
 
