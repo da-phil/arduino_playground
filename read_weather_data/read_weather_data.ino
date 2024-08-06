@@ -78,6 +78,11 @@ constexpr MqttConfig mqtt_config{.server_ip = SECRETS_MQTT_SERVER_IP,
 constexpr const char *TOPIC_MEASUREMENTS = "watering/" LOCATION "/" SW_VERSION "/measurements";
 constexpr const char *TOPIC_LOGGING = "watering/" LOCATION "/" SW_VERSION "/logging";
 
+// NTP config
+constexpr int8_t UTC_TO_CET_OFFSET_H{2};
+constexpr long GMT_TO_UTC_OFFSET_S{UTC_TO_CET_OFFSET_H * 60 * 60};
+constexpr unsigned long NTP_UPDATE_INTERVAL_MS{30U * 60U * 1000U};
+
 // DHT22 sensor config
 constexpr uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
 
@@ -88,16 +93,13 @@ constexpr uint8_t DHTPIN = 5U; // Digital pin connected to the DHT sensor
 DHT dht(DHTPIN, DHT22);
 Adafruit_BME280 bme_sensor;
 
-// Initialize WiFi & MQTT broker clients
+// WiFi & MQTT broker clients
 WiFiClient wificlient;
 MqttClient mqttclient(wificlient);
 WiFiUDP wifi_udp_client;
 
-// Initialize NTP and RTC client
-constexpr int8_t UTC_TO_CET_OFFSET_H{2};
-constexpr long GMT_TO_UTC_OFFSET_S{UTC_TO_CET_OFFSET_H * 60 * 60};
-constexpr unsigned long NTP_UPDATE_INTERVAL{10U * 60U * 1000U};
-NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL);
+// NTP and RTC client
+NTPClient ntp_client(wifi_udp_client, "pool.ntp.org", 0, NTP_UPDATE_INTERVAL_MS);
 RTCZero rtc;
 
 utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
@@ -194,7 +196,7 @@ bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, We
 
 void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc, bool is_first_update = false)
 {
-    // try to update time from NTP server (once every NTP_UPDATE_INTERVAL seconds)
+    // try to update time from NTP server according to configured update cycle time
     const bool ntp_update_is_due{ntp_client.update()};
     const bool ntp_update_successfull{ntp_client.isTimeSet()};
 
