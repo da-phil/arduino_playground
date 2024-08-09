@@ -34,13 +34,14 @@ struct WifiConfig
 
 struct WeatherMeasurements
 {
-    uint32_t timestamp; /// seconds since unix epoch in UTC timezone
-    bool is_valid;      /// Is measurement valid
-    float temp_c;       /// Temperature in [°C]
-    float humidity;     /// Relative humidity [%]
-    float pressue_hpa;  /// Absolute air pressure [hPa]
-    float heat_index;   /// Heat index [°C]
-    float pv_voltage;   /// Photovoltaik panel voltage [V]
+    uint32_t timestamp;   /// seconds since unix epoch in UTC timezone
+    bool is_valid;        /// Is measurement valid
+    float temp_c;         /// Temperature in [°C]
+    float humidity;       /// Relative humidity [%]
+    float pressue_hpa;    /// Absolute air pressure [hPa]
+    float heat_index;     /// Heat index [°C]
+    float pv_voltage;     /// Photovoltaik panel voltage [V]
+    float supply_voltage; /// Supply voltage of weather station [V]
 };
 
 bool isConnectedToWiFi(WiFiClass &wifi);

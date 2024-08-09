@@ -55,10 +55,12 @@ constexpr uint32_t SERIAL_BAUDRATE{9600U};
 constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL{false};
 
 // ADC config
-constexpr float VREF = 3.3F;
-constexpr unsigned int ADC_RES_BITS = 12U;
-constexpr unsigned int ADC_NUM_SAMPLES = 1U << ADC_RES_BITS;
-constexpr float VOLTAGE_DIVIDER_FACTOR = 0.224F;
+constexpr AdcConfig adc_config{
+    .v_ref = 3.3F,
+    .adc_bit_resolution = 12,
+    .num_samples = 1 << 12,
+    .voltage_divider_factor = {0.224F, 0.5F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
+};
 
 // Wifi config
 constexpr WifiConfig wifi_config{.ssid = SECRETS_WIFI_SSID,
@@ -106,13 +108,18 @@ utils::Ringbuffer<WeatherMeasurements> tx_buffer{TX_BUFFER_SIZE};
 SerialLoggingBackend serial_logging{LogLevel::INFO};
 MqttLoggingBackend mqtt_logging{LogLevel::INFO, mqttclient, TOPIC_LOGGING};
 
-float getSolarPanelVoltage()
+using AdcMeasurements = std::array<float, 8>;
+AdcMeasurements getAdcMeasurements(const AdcConfig &adc_config)
 {
-    // read the input on analog pin 0 and convert to voltage range (0 - VREF):
-    const int analog_val = analogRead(A0);
-    const float adc_voltage = analog_val * (VREF / static_cast<float>(ADC_NUM_SAMPLES));
-    const float pv_voltage = adc_voltage / VOLTAGE_DIVIDER_FACTOR;
-    return pv_voltage;
+    AdcMeasurements adc_measurements{};
+    for (std::size_t i = 0U; i < 8U; ++i)
+    {
+        // TODO: check if the following assumption is portable to all Arduino platforms
+        const int analog_val = analogRead(A0 + i);
+        const float adc_voltage = analog_val * (adc_config.v_ref / static_cast<float>(adc_config.num_samples));
+        adc_measurements[i] = adc_voltage / adc_config.voltage_divider_factor[i];
+    }
+    return adc_measurements;
 }
 
 WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
@@ -121,6 +128,7 @@ WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     const float humidity = dht.readHumidity();
     const float temp_c = dht.readTemperature();
+    const auto adc_measurements = getAdcMeasurements(adc_config);
 
     WeatherMeasurements measurements{.timestamp = rtc.getEpoch(),
                                      .is_valid = false,
@@ -128,7 +136,8 @@ WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
                                      .humidity = humidity,
                                      .pressue_hpa = PRESSURE_SEALEVEL_HPA,
                                      .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
-                                     .pv_voltage = getSolarPanelVoltage()};
+                                     .pv_voltage = adc_measurements[0],
+                                     .supply_voltage = adc_measurements[1]};
     measurements.is_valid = areMeasurementsPlausible(measurements);
 
     return measurements;
@@ -140,6 +149,7 @@ WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
     const float temp_c = bme_sensor.readTemperature();
     const float pressure_pha = bme_sensor.readPressure() / 100.0F;
     const float humidity = bme_sensor.readHumidity();
+    const auto adc_measurements = getAdcMeasurements(adc_config);
 
     WeatherMeasurements measurements{.timestamp = rtc.getEpoch(),
                                      .is_valid = false,
@@ -147,7 +157,8 @@ WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
                                      .humidity = humidity,
                                      .pressue_hpa = pressure_pha,
                                      .heat_index = dht.computeHeatIndex(temp_c, humidity, false),
-                                     .pv_voltage = getSolarPanelVoltage()};
+                                     .pv_voltage = adc_measurements[0],
+                                     .supply_voltage = adc_measurements[1]};
     measurements.is_valid = read_sensor_success && areMeasurementsPlausible(measurements);
 
     return measurements;
@@ -298,7 +309,7 @@ void setup()
     Logger::get().setTimeFunction([]() { return rtc.getEpoch(); });
 
     // Configure ADC
-    analogReadResolution(ADC_RES_BITS);
+    analogReadResolution(adc_config.adc_bit_resolution);
     analogReference(AR_DEFAULT);
 
     // Configure weather sensor
