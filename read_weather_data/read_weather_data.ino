@@ -57,7 +57,7 @@ constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL{false};
 // ADC config
 constexpr float VREF = 3.3F;
 constexpr unsigned int ADC_RES_BITS = 12U;
-constexpr unsigned int ADC_NUM_SAMPLES = 2U << (ADC_RES_BITS - 1U);
+constexpr unsigned int ADC_NUM_SAMPLES = 1U << ADC_RES_BITS;
 constexpr float VOLTAGE_DIVIDER_FACTOR = 0.224F;
 
 // Wifi config
