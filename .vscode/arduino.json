@@ -1,6 +1,6 @@
 {
     "sketch": "read_weather_data/read_weather_data.ino",
-    "board": "arduino:samd:mkr1000",
+    "board": "arduino:samd:nano_33_iot",
     "port": "/dev/ttyACM0",
     "programmer": "atmel_ice",
     "output": "build",

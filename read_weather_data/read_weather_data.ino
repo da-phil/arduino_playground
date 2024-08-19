@@ -122,6 +122,53 @@ AdcMeasurements getAdcMeasurements(const AdcConfig &adc_config)
     return adc_measurements;
 }
 
+bool initBme280Sensor(Adafruit_BME280 &bme280_sensor)
+{
+    const bool sensor_found = bme_sensor.begin(0x77, &Wire);
+    if (sensor_found)
+    {
+        bme_sensor.setSampling(Adafruit_BME280::MODE_FORCED,
+                               Adafruit_BME280::SAMPLING_X4, // temperature
+                               Adafruit_BME280::SAMPLING_X1, // pressure
+                               Adafruit_BME280::SAMPLING_X4, // humidity
+                               Adafruit_BME280::FILTER_X4,   // IIR filter
+                               Adafruit_BME280::STANDBY_MS_20);
+    }
+    else
+    {
+        Logger::get().logError(
+            "Couldn't find a valid BME280 sensor, check wiring, address, sensor ID! SensorID was: 0x%x",
+            bme_sensor.sensorID());
+        //  ID of 0xFF probably means a bad address, a BMP 180 or BMP 085
+        //  ID of 0x56-0x58 represents a BMP 280
+        //  ID of 0x60 represents a BME 280
+        //  ID of 0x61 represents a BME 680
+    }
+    return sensor_found;
+}
+
+bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, WeatherSensor weather_sensor_type)
+{
+    // init weather sensor of choice
+    bool sensor_found = false;
+    if (weather_sensor_type == WeatherSensor::DHT22)
+    {
+        dht_sensor.begin();
+        sensor_found = true;
+    }
+    else if (weather_sensor_type == WeatherSensor::BME280)
+    {
+        sensor_found = initBme280Sensor(bme280_sensor);
+    }
+    else
+    {
+        sensor_found = false;
+        Logger::get().logError("No weather sensor was chosen in config!!!");
+    }
+
+    return sensor_found;
+}
+
 WeatherMeasurements takeMeasurements(DHT &dht, RTCZero &rtc)
 {
     // Reading temperature or humidity takes about 250 milliseconds!
@@ -161,48 +208,19 @@ WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
                                      .supply_voltage = adc_measurements[1]};
     measurements.is_valid = read_sensor_success && areMeasurementsPlausible(measurements);
 
+    // re-init hack: somehow I2C is broken after a measurement retrieval on an Arduino Nano 33 IoT board
+    // and needs to be re-initialized every time after...
+    const bool sensor_initialized = initBme280Sensor(bme_sensor);
+    if (!sensor_initialized)
+    {
+        Logger::get().logFatal("Weather sensor could not be initialized, can not continue!");
+        while (true)
+        {
+            delay(BUSY_LOOP_DELAY_MS);
+        }
+    }
+
     return measurements;
-}
-
-bool initializeWeatherSensor(DHT &dht_sensor, Adafruit_BME280 &bme280_sensor, WeatherSensor weather_sensor_type)
-{
-    // init weather sensor of choice
-    bool sensor_found = false;
-    if (weather_sensor_type == WeatherSensor::DHT22)
-    {
-        dht_sensor.begin();
-        sensor_found = true;
-    }
-    else if (weather_sensor_type == WeatherSensor::BME280)
-    {
-        sensor_found = bme_sensor.begin();
-        if (sensor_found)
-        {
-            bme_sensor.setSampling(Adafruit_BME280::MODE_FORCED,
-                                   Adafruit_BME280::SAMPLING_X4, // temperature
-                                   Adafruit_BME280::SAMPLING_X1, // pressure
-                                   Adafruit_BME280::SAMPLING_X4, // humidity
-                                   Adafruit_BME280::FILTER_X4,   // IIR filter
-                                   Adafruit_BME280::STANDBY_MS_250);
-        }
-        else
-        {
-            Logger::get().logError(
-                "Couldn't find a valid BME280 sensor, check wiring, address, sensor ID! SensorID was: 0x%x",
-                bme_sensor.sensorID());
-            //  ID of 0xFF probably means a bad address, a BMP 180 or BMP 085
-            //  ID of 0x56-0x58 represents a BMP 280
-            //  ID of 0x60 represents a BME 280
-            //  ID of 0x61 represents a BME 680
-        }
-    }
-    else
-    {
-        sensor_found = false;
-        Logger::get().logError("No weather sensor was chosen in config!!!");
-    }
-
-    return sensor_found;
 }
 
 void updateRtcFromNtp(NTPClient &ntp_client, RTCZero &rtc, bool is_first_update = false)
@@ -280,6 +298,7 @@ void networkConnectionTask()
         mqttclient.poll();
     }
 }
+
 Scheduler<unsigned long> network_connection_task{BUSY_LOOP_DELAY_MS, millis, networkConnectionTask};
 Scheduler<unsigned long> sampling_task{SAMPLING_TASK_INTERVAL_MS, millis, samplingTask};
 Scheduler<unsigned long> mqtt_sender_task{DATA_TRANSMISSION_TASK_INTERVAL_MS, millis,
