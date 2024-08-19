@@ -204,7 +204,9 @@ void print(const WeatherMeasurements &measurements)
     Serial.print(F("%, Heat index: "));
     Serial.print(measurements.heat_index);
     Serial.print(F(", PV voltage: "));
-    Serial.println(measurements.pv_voltage);
+    Serial.print(measurements.pv_voltage);
+    Serial.print(F(", Supply voltage: "));
+    Serial.println(measurements.supply_voltage);
 }
 
 void print(RTCZero &rtc, const uint8_t timezone_offset_h)
@@ -218,12 +220,12 @@ void print(RTCZero &rtc, const uint8_t timezone_offset_h)
 
 std::string createJsonStringFromMeasurement(const WeatherMeasurements &measurements)
 {
-    char json_str[128U];
+    char json_str[160U];
     snprintf(json_str, sizeof(json_str),
              "{\"timestamp\":%lu,\"temperature\":%.2f,\"humidity\":%.2f,"
-             "\"pressure\":%.2f,\"heat_index\":%.2f,\"pv_voltage\":%.2f}",
+             "\"pressure\":%.2f,\"heat_index\":%.2f,\"pv_voltage\":%.2f,\"supply_voltage\":%.2f}",
              measurements.timestamp, measurements.temp_c, measurements.humidity, measurements.pressue_hpa,
-             measurements.heat_index, measurements.pv_voltage);
+             measurements.heat_index, measurements.pv_voltage, measurements.supply_voltage);
 
     return std::string{json_str};
 }
@@ -270,7 +272,9 @@ bool areMeasurementsPlausible(const WeatherMeasurements &measurements)
             isFloatValueValid(measurements.pressue_hpa) &&                                                 //
             (measurements.pressue_hpa >= 900.0F) && (measurements.pressue_hpa <= PRESSURE_SEALEVEL_HPA) && //
             isFloatValueValid(measurements.pv_voltage) &&                                                  //
-            (measurements.pv_voltage >= 0.0F && measurements.pv_voltage <= 14.0F));
+            (measurements.pv_voltage >= 0.0F && measurements.pv_voltage <= 14.0F) &&                       //
+            isFloatValueValid(measurements.supply_voltage) &&                                              //
+            (measurements.supply_voltage >= 3.3F && measurements.supply_voltage <= 20.0F));
 }
 
 bool readyToSchedule(const unsigned long next_schedule_interval)
