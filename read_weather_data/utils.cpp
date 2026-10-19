@@ -1,7 +1,10 @@
 #include <cstdio>
+#include <malloc.h>
 
 #include "logging.h"
 #include "utils.h"
+
+extern "C" char *sbrk(int incr);
 
 bool isConnectedToWiFi(WiFiClass &wifi)
 {
@@ -151,6 +154,7 @@ bool connectToWiFi(WiFiClass &wifi, const WifiConfig &wifi_config)
     {
         Logger::get().logWarning("Status: %s. Attempting to reconnect...", wifiStatusToString(wifi.status()));
         delay(wifi_config.retry_delay_ms);
+        ++retries;
     }
 
     const bool wifi_connected = isConnectedToWiFi(wifi);
@@ -280,4 +284,16 @@ bool areMeasurementsPlausible(const WeatherMeasurements &measurements)
 bool readyToSchedule(const unsigned long next_schedule_interval)
 {
     return millis() >= next_schedule_interval;
+}
+
+MemoryStats getMemoryStats()
+{
+    char stack_top{};
+    const struct mallinfo heap_info = mallinfo();
+
+    MemoryStats stats{};
+    stats.unallocated_bytes = static_cast<uint32_t>(&stack_top - static_cast<char *>(sbrk(0)));
+    stats.heap_used_bytes = heap_info.uordblks;
+    stats.heap_free_bytes = heap_info.fordblks;
+    return stats;
 }
