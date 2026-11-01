@@ -321,8 +321,8 @@ void heartbeatTask()
 {
     static uint32_t uptime_h{0U};
     const MemoryStats memory = getMemoryStats();
-    Logger::get().logInfo("Uptime %luh, RAM free %lu, heap used %lu, heap free %lu", uptime_h,
-                          memory.unallocated_bytes, memory.heap_used_bytes, memory.heap_free_bytes);
+    Logger::get().logInfo("Uptime %luh, RAM free %lu, heap used %lu, heap free %lu", uptime_h, memory.unallocated_bytes,
+                          memory.heap_used_bytes, memory.heap_free_bytes);
     ++uptime_h;
 }
 Scheduler<unsigned long> heartbeat_task{HEARTBEAT_TASK_INTERVAL_MS, millis, heartbeatTask};
