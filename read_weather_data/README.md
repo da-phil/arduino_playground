@@ -47,8 +47,15 @@ In this folder or the repository root:
 make                                  # compile for the Nano 33 IoT
 make upload PORT=/dev/ttyACM0         # compile and upload
 make monitor PORT=/dev/ttyACM0        # show the serial output
-make test                             # run the unit tests on this computer
+make test                             # build and run the unit tests on this computer
 ```
+
+### Unit tests
+
+The unit tests in [`test`](test) cover the platform independent parts (ring buffer, scheduler). They use
+[doctest](https://github.com/doctest/doctest) and are built with CMake for the development computer, not
+for the board. `make test` configures, builds and runs them; build output goes to
+`build/read_weather_data/tests` in the repository root.
 
 ## Server setup
 

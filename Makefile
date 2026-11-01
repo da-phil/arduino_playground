@@ -10,7 +10,7 @@
 #   make monitor PORT=<port>   show the serial output of the board
 #   make all-profiles          compile one sketch for every board in its sketch.yaml
 #   make all                   compile every sketch for every board
-#   make test                  build and run the unit tests on this computer
+#   make test                  build and run the unit tests of a sketch on this computer
 #   make format                format the code of a sketch with clang-format
 #   make format-check          check the formatting like the CI does
 #   make list                  list all sketches and their profiles
@@ -39,6 +39,7 @@ profiles_of = $(shell sed -n 's/^  \([A-Za-z0-9_-]*\):$$/\1/p' $(1)/sketch.yaml)
 SECRETS = $(if $(wildcard $(SKETCH)/arduino_secrets.h.template),$(SKETCH)/arduino_secrets.h)
 SOURCES = $(shell find $(SKETCH) \( -iname '*.ino' -o -iname '*.[ch]pp' \) -print)
 COMPILE = $(ARDUINO_CLI) compile --profile $(PROFILE) --build-path $(BUILD_DIR)/$(SKETCH)/$(PROFILE)
+TEST_BUILD_DIR = $(BUILD_DIR)/$(SKETCH)/tests
 
 .DEFAULT_GOAL := compile
 .PHONY: compile upload monitor all-profiles all test format format-check list clean help check-sketch
@@ -63,10 +64,12 @@ all:
 		$(MAKE) --no-print-directory all-profiles SKETCH=$$sketch || exit 1; \
 	done
 
-test:
-	cmake -S . -B $(BUILD_DIR)/tests -DCMAKE_BUILD_TYPE=Debug
-	cmake --build $(BUILD_DIR)/tests
-	ctest --test-dir $(BUILD_DIR)/tests --output-on-failure
+# Unit tests run on this computer. A sketch has unit tests if it contains a CMakeLists.txt.
+test: check-sketch
+	@test -f $(SKETCH)/CMakeLists.txt || { echo "$(SKETCH) has no unit tests"; exit 0; } && \
+	cmake -S $(SKETCH) -B $(TEST_BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug && \
+	cmake --build $(TEST_BUILD_DIR) && \
+	cd $(TEST_BUILD_DIR) && ctest --output-on-failure
 
 format: check-sketch
 	$(CLANG_FORMAT) -i --style=file $(SOURCES)

@@ -4,10 +4,14 @@ on:
     paths:
       - ".github/workflows/*.yml"
       - "read_weather_data/**"
+      - "Makefile"
+      - "CMakeLists.txt"
   pull_request:
     paths:
       - ".github/workflows/*.yml"
       - "read_weather_data/**"
+      - "Makefile"
+      - "CMakeLists.txt"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -79,18 +83,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure
-        run: cmake -DCMAKE_BUILD_TYPE=Debug .
+      - name: Build and run unit tests
+        run: make test
         env:
           CC: gcc-${{ matrix.gcc }}
           CXX: g++-${{ matrix.gcc }}
           CXXFLAGS: ${{ matrix.cxxflags }}
-        timeout-minutes: 1
-
-      - name: Build
-        run: cmake --build .
-        timeout-minutes: 1
-
-      - name: Test
-        run: ctest --output-on-failure --test-dir .
-        timeout-minutes: 1
+        timeout-minutes: 3

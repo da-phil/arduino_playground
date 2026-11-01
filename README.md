@@ -14,7 +14,7 @@ Arduino sketches for SAMD21 boards with WiFi (Arduino Nano 33 IoT, MKR WiFi 1010
 ### Prerequisites
 
 * [arduino-cli](https://arduino.github.io/arduino-cli/latest/installation/) and `make`
-* Optional, for the unit tests: `cmake` and a C++ compiler
+* Optional, for the unit tests: `cmake` (3.13 or newer) and a C++17 compiler
 * Optional, for formatting the code: `clang-format` (the CI uses version 21)
 
 You don't need to install any Arduino libraries by hand. Each sketch folder contains a `sketch.yaml`, which
@@ -43,7 +43,7 @@ make PROFILE=mkr1000                  # compile for another board
 make upload PORT=/dev/ttyACM0         # compile and upload
 make monitor PORT=/dev/ttyACM0        # show the serial output
 make all                              # compile every sketch for every board
-make test                             # run the unit tests on this computer
+make test                             # build and run the unit tests on this computer
 make list                             # list all sketches and their profiles
 make help                             # list all targets
 ```
@@ -51,6 +51,9 @@ make help                             # list all targets
 You can also run `make` inside a sketch folder: there it builds that sketch, without `SKETCH=`. For example,
 `make upload PORT=/dev/ttyACM0` in `DHT22/` uploads the DHT22 sketch. In a sketch folder, `make all-profiles`
 builds that sketch for every board, while `make all` still builds all sketches.
+
+Unit tests run on this computer, not on the board. A sketch has unit tests if its folder contains a
+`CMakeLists.txt`; currently that's `read_weather_data`, with its tests in `read_weather_data/test`.
 
 Build output goes to the `build/` folder in the repository root. Without `make`, the same build works with
 e.g. `arduino-cli compile --profile nano_33_iot read_weather_data`.
