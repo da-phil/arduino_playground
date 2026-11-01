@@ -1,5 +1,5 @@
 # Build profiles for arduino-cli: board platform per supported board, this sketch needs no libraries.
-# Build with `make SKETCH=simple_adc_reading` in the repository root (see Makefile there).
+# Build with `make` in this folder or `make SKETCH=simple_adc_reading` in the repository root (see the Makefile there).
 
 profiles:
   nano_33_iot:

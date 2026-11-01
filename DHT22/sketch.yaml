@@ -1,5 +1,5 @@
 # Build profiles for arduino-cli: board platform and library versions per supported board.
-# Build with `make SKETCH=DHT22` in the repository root (see Makefile there).
+# Build with `make` in this folder or `make SKETCH=DHT22` in the repository root (see the Makefile there).
 
 profiles:
   nano_33_iot:

@@ -18,6 +18,9 @@
 #
 # Options: SKETCH=<sketch folder>, PROFILE=<profile from its sketch.yaml>,
 #          PORT=<serial port, see `arduino-cli board list`>
+#
+# The same targets also work inside a sketch folder: its Makefile passes them on to this one
+# with SKETCH set to that folder.
 
 ARDUINO_CLI ?= arduino-cli
 CLANG_FORMAT ?= clang-format

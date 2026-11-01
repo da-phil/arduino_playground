@@ -41,7 +41,7 @@ constexpr const int SECRETS_MQTT_SERVER_PORT = 1883; // Port of MQTT broker
 
 ### Building and uploading
 
-In the repository root:
+In this folder or the repository root:
 
 ```bash
 make                                  # compile for the Nano 33 IoT

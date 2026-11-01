@@ -3,7 +3,7 @@
 #
 # arduino-cli downloads everything listed in a profile on the first build, e.g.:
 #   arduino-cli compile --profile nano_33_iot
-# or simply run `make` in the repository root (see Makefile there).
+# or simply run `make` in this folder or the repository root (see the Makefile there).
 #
 # When updating a version here, build all profiles (`make all-profiles`) before committing.
 # The other sketches in this repository pin the same versions in their own sketch.yaml.

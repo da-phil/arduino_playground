@@ -48,7 +48,11 @@ make list                             # list all sketches and their profiles
 make help                             # list all targets
 ```
 
-Build output goes to the `build/` folder. Without `make`, the same build works with e.g.
-`arduino-cli compile --profile nano_33_iot read_weather_data`.
+You can also run `make` inside a sketch folder: there it builds that sketch, without `SKETCH=`. For example,
+`make upload PORT=/dev/ttyACM0` in `DHT22/` uploads the DHT22 sketch. In a sketch folder, `make all-profiles`
+builds that sketch for every board, while `make all` still builds all sketches.
+
+Build output goes to the `build/` folder in the repository root. Without `make`, the same build works with
+e.g. `arduino-cli compile --profile nano_33_iot read_weather_data`.
 
 To add a new sketch, give its folder a `sketch.yaml` with the same profile names, and `make` picks it up.
