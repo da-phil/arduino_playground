@@ -96,7 +96,7 @@ class MqttLoggingBackend : public ILoggingBackend
             Msg log_msg;
             snprintf(log_msg.begin(), MAX_MSG_LENGTH,
                      "{\"timestamp\":%lu,\"level\":\"%s\",\"msg\":\"%s\"}", //
-                     timestamp, toString(log_level), msg);
+                     static_cast<unsigned long>(timestamp), toString(log_level), msg);
             tx_buffer_.push(log_msg);
         }
 
