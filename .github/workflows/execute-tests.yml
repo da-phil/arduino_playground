@@ -46,7 +46,8 @@ jobs:
   build_and_test_gcc:
     name: GCC
     needs: lint
-    runs-on: ubuntu-latest
+    # The install step uses apt-key and old Ubuntu repositories, apt-key no longer exists on Ubuntu 26.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
