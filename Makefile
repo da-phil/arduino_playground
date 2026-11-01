@@ -11,8 +11,7 @@
 #   make all-profiles          compile one sketch for every board in its sketch.yaml
 #   make all                   compile every sketch for every board
 #   make test                  build and run the unit tests of a sketch on this computer
-#   make format                format the code of a sketch with clang-format
-#   make format-check          check the formatting like the CI does
+#   make check                 run the pre-commit checks (formatting, whitespace, file checks) on all files
 #   make list                  list all sketches and their profiles
 #   make clean                 remove all build output
 #
@@ -23,7 +22,7 @@
 # with SKETCH set to that folder.
 
 ARDUINO_CLI ?= arduino-cli
-CLANG_FORMAT ?= clang-format
+PRE_COMMIT ?= pre-commit
 SKETCH ?= read_weather_data
 PROFILE ?= nano_33_iot
 PORT ?= /dev/ttyACM0
@@ -37,12 +36,11 @@ profiles_of = $(shell sed -n 's/^  \([A-Za-z0-9_-]*\):$$/\1/p' $(1)/sketch.yaml)
 
 # Sketches with a secrets template can't be built before the secrets file was created
 SECRETS = $(if $(wildcard $(SKETCH)/arduino_secrets.h.template),$(SKETCH)/arduino_secrets.h)
-SOURCES = $(shell find $(SKETCH) \( -iname '*.ino' -o -iname '*.[ch]pp' \) -print)
 COMPILE = $(ARDUINO_CLI) compile --profile $(PROFILE) --build-path $(BUILD_DIR)/$(SKETCH)/$(PROFILE)
 TEST_BUILD_DIR = $(BUILD_DIR)/$(SKETCH)/tests
 
 .DEFAULT_GOAL := compile
-.PHONY: compile upload monitor all-profiles all test format format-check list clean help check-sketch
+.PHONY: compile upload monitor all-profiles all test check list clean help check-sketch
 
 compile: check-sketch $(SECRETS)
 	$(COMPILE) $(SKETCH)
@@ -79,11 +77,11 @@ test: check-sketch
 	cmake --build $(TEST_BUILD_DIR) && \
 	cd $(TEST_BUILD_DIR) && ctest --output-on-failure
 
-format: check-sketch
-	$(CLANG_FORMAT) -i --style=file $(SOURCES)
-
-format-check: check-sketch
-	$(CLANG_FORMAT) --dry-run --Werror --style=file $(SOURCES)
+# Runs the pre-commit checks from .pre-commit-config.yaml on all files, like the CI does.
+# clang-format fixes the formatting in place, so a failed run leaves the corrected files behind.
+check:
+	@command -v $(firstword $(PRE_COMMIT)) >/dev/null || { echo "pre-commit is missing, install it with: pipx install pre-commit" >&2; exit 1; }
+	$(PRE_COMMIT) run --all-files
 
 list:
 	@$(foreach sketch,$(SKETCHES),echo "$(sketch): $(call profiles_of,$(sketch))";)

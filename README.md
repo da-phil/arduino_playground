@@ -15,7 +15,9 @@ Arduino sketches for SAMD21 boards with WiFi (Arduino Nano 33 IoT, MKR WiFi 1010
 
 * [arduino-cli](https://arduino.github.io/arduino-cli/latest/installation/) and `make`
 * Optional, for the unit tests: `cmake` (3.13 or newer) and a C++17 compiler
-* Optional, for formatting the code: `clang-format` (the CI uses version 21)
+* Optional, for the code quality checks: [pre-commit](https://pre-commit.com), e.g. `pipx install pre-commit`.
+  Run `pre-commit install` once in the repository to check every commit. pre-commit downloads the pinned
+  `clang-format` version itself.
 
 You don't need to install any Arduino libraries by hand. Each sketch folder contains a `sketch.yaml`, which
 pins the board platform and the exact library versions per board, in so-called build profiles:
@@ -44,6 +46,7 @@ make upload PORT=/dev/ttyACM0         # compile and upload
 make monitor PORT=/dev/ttyACM0        # show the serial output
 make all                              # compile every sketch for every board
 make test                             # build and run the unit tests on this computer
+make check                            # run the pre-commit checks: formatting, whitespace, file checks
 make list                             # list all sketches and their profiles
 make help                             # list all targets
 ```

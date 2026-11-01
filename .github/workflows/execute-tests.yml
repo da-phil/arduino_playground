@@ -5,12 +5,14 @@ on:
       - ".github/workflows/*.yml"
       - "read_weather_data/**"
       - "Makefile"
+      - ".pre-commit-config.yaml"
       - "CMakeLists.txt"
   pull_request:
     paths:
       - ".github/workflows/*.yml"
       - "read_weather_data/**"
       - "Makefile"
+      - ".pre-commit-config.yaml"
       - "CMakeLists.txt"
 
 concurrency:
@@ -22,23 +24,13 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - folder: read_weather_data
 
     steps:
-      - name: Install
-        run: sudo apt-get install -y clang-format
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Symlinks
-        run: find ${{ matrix.folder }} -type l -printf "::error::%p is a symlink. This is forbidden by the Arduino Library Specification." -exec false {} +
-      - name: Clang-format
-        run: |
-          find ${{ matrix.folder }} -iname '*.ino' -o -iname '*.[ch]pp' | xargs clang-format -i --verbose --style=file
-          git diff --exit-code
+      # Same checks as in `make check` locally, defined in .pre-commit-config.yaml
+      - name: Pre-commit checks
+        run: pipx run pre-commit run --all-files --show-diff-on-failure --color always
       - name: Check URLs
         run: |
           grep -hREo "(http|https)://[a-zA-Z0-9./?=_%:-]*" | sort -u | while read -r URL

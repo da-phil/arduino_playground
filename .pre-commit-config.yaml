@@ -1,0 +1,45 @@
+# Code quality checks. They run on every `git commit` after `pre-commit install`,
+# with `make check`, and in the "Code quality test suite" CI workflow.
+
+# Third-party code is kept as it is
+exclude: ^read_weather_data/test/doctest\.h$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Repository hygiene
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: detect-private-key
+      # File syntax
+      - id: check-yaml
+      - id: check-json
+      # Scripts
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      # Whitespace and line endings, fixed in place
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v21.1.8
+    hooks:
+      - id: clang-format
+        # Formats the files in place with the style from .clang-format
+        files: ^read_weather_data/.*\.(ino|[ch]pp)$
+        types_or: [file]
+
+  - repo: local
+    hooks:
+      - id: no-symlinks
+        name: no symlinks
+        language: fail
+        entry: "Symlinks are forbidden by the Arduino Library Specification:"
+        files: ^read_weather_data/
+        types: [symlink]

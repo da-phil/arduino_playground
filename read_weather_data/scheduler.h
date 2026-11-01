@@ -34,7 +34,7 @@ class Scheduler
     }
 
     void executeIfReady()
-    {        
+    {
         if (callback_ && isReadyForScheduling())
         {
 

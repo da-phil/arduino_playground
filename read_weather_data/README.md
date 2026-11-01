@@ -48,14 +48,16 @@ make                                  # compile for the Nano 33 IoT
 make upload PORT=/dev/ttyACM0         # compile and upload
 make monitor PORT=/dev/ttyACM0        # show the serial output
 make test                             # build and run the unit tests on this computer
+make check                            # run the pre-commit checks: formatting, whitespace, file checks
 ```
 
 ### Unit tests
 
-The unit tests in [`test`](test) cover the platform independent parts (ring buffer, scheduler). They use
-[doctest](https://github.com/doctest/doctest) and are built with CMake for the development computer, not
-for the board. `make test` configures, builds and runs them; build output goes to
-`build/read_weather_data/tests` in the repository root.
+The unit tests in [`test`](test) cover the platform independent parts (ring buffer, scheduler, logging). They
+use [doctest](https://github.com/doctest/doctest) and are built with CMake for the development computer, not
+for the board. Every `test_*.cpp` file is its own test program. Code that needs Arduino libraries compiles
+against the fake headers in [`test/mocks`](test/mocks). `make test` configures, builds and runs them; build
+output goes to `build/read_weather_data/tests` in the repository root.
 
 ## Server setup
 
@@ -176,7 +178,7 @@ The following instructions have been only tested with influxdb2:
 
   ```bash
   influx auth create --org server  --user grafana                   \
-                     --read-buckets --read-dashboards --read-tasks           
+                     --read-buckets --read-dashboards --read-tasks  
   ```
 
 ### MQTT to InfluxDB bridge: Telegraf
@@ -301,7 +303,7 @@ http_port = 3000
 After updating the config, restart the service by:
 
 ```bash
-sudo systemctl restart grafana-server.service 
+sudo systemctl restart grafana-server.service
 ```
 
 Now you should be able to access the web GUI at <https://localhost:3000> and create the initial `admin` account to get started with the remaining configuration steps, such as optionally creating further user accounts and further fine-tuning.

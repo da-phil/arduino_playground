@@ -8,7 +8,7 @@
 #include "DHT.h"
 
 #define DHTPIN 5     // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22   // DH11 / DHT21 / DHT22 
+#define DHTTYPE DHT22   // DH11 / DHT21 / DHT22
 
 // Connect pin 1 (on the left) of the sensor to +5V
 // NOTE: If using a board with 3.3V logic like an Arduino Due connect pin 1

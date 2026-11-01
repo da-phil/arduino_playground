@@ -63,7 +63,7 @@ def get_samples_from_message(msg: str) -> list:
 
 def test_format(message_str: str) -> bool:
     samples = get_samples_from_message(message_str)
-    
+
     # Testcase: Check numeric values
     if samples.humidity == EXAMPLE_HUMIDITY and samples.temperature == EXAMPLE_TEMP and samples.heat_index == EXAMPLE_HEAT_INDEX:
         return True
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             print(msg)
             samples["temperature"].append(msg.temperature)
             samples["humidity"].append(msg.humidity)
-            samples["heat_index"].append(msg.heat_index)   
+            samples["heat_index"].append(msg.heat_index)
     except KeyboardInterrupt:
         print("Exit!")
         print(json.dumps(samples, sort_keys=False, indent=2))
