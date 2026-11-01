@@ -21,25 +21,27 @@ Tbd
 
 ### Prerequisites
 
-#### Arduino libraries
+* [arduino-cli](https://arduino.github.io/arduino-cli/latest/installation/) and `make`
+* Optional, for the unit tests: `cmake` and a C++ compiler
+* Optional, for formatting the code: `clang-format` (the CI uses version 21)
 
-In order to use this codebase the following Arduino libs are needed:
+#### Arduino platform and libraries
 
-* WiFi101
-* ArduinoMqttClient
-* NTPClient
-* RTCZero
+You don't need to install any Arduino libraries by hand. The board platform and the exact library versions
+the sketch is built and tested with are listed in [`sketch.yaml`](sketch.yaml), with one build profile per
+supported board:
 
-If you use a DHT22 sensor you additionally need the `DHT sensor library`, for the more accurate BME280 sensor, which also measures air pressure, you need to
-install the `Adafruit BME280 Library` and the `Adafruit Unified Sensor` libraries.
+| Profile       | Board                         |
+|---------------|-------------------------------|
+| `nano_33_iot` | Arduino Nano 33 IoT (default) |
+| `mkrwifi1010` | Arduino MKR WiFi 1010         |
+| `mkr1000`     | Arduino MKR1000               |
 
-If I didn't completely misunderstand or mess it up, you can use the following command together with the `arduino-cli` tool to install al the above-mentioned libraries by the following command for the current development platform (Arudino MKR1000):
+On the first build `arduino-cli` downloads everything listed in the selected profile into its own cache, so
+it doesn't interfere with libraries you installed for other sketches.
 
-```bash
-arduino-cli compile --profile mkrwifi1010
-```
-
-If this does not work, you need to install each library individually via the library manager.
+If you use the Arduino IDE instead, install the platform and library versions listed in `sketch.yaml` with
+the Boards Manager and the Library Manager.
 
 #### Credentials for Wi-Fi network and MQTT broker
 
@@ -54,6 +56,25 @@ constexpr const char *SECRETS_MQTT_PASSWORD = "123456"; // MQTT password
 constexpr const char *SECRETS_MQTT_SERVER_IP = "192.168.0.1"; // IP address of the MQTT broker
 constexpr const int SECRETS_MQTT_SERVER_PORT = 1883; // Port of MQTT broker
 ```
+
+### Building and uploading
+
+Run these commands in the `read_weather_data` folder. Find the serial port of a connected board with
+`arduino-cli board list`.
+
+```bash
+make                                  # compile for the Nano 33 IoT
+make upload PORT=/dev/ttyACM0         # compile and upload
+make monitor PORT=/dev/ttyACM0        # show the serial output
+make PROFILE=mkr1000                  # compile for another board from sketch.yaml
+make all-profiles                     # compile for all boards
+make test                             # run the unit tests on this computer
+make format                           # format the code with clang-format
+make help                             # list all targets
+```
+
+Build output goes to the `build/` folder in the repository root. Without `make`, the same build works with
+`arduino-cli compile --profile nano_33_iot` in this folder.
 
 ## Server setup
 
