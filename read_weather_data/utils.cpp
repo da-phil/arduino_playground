@@ -274,7 +274,7 @@ bool areMeasurementsPlausible(const WeatherMeasurements &measurements)
             isFloatValueValid(measurements.humidity) &&                                                    //
             (measurements.humidity > 0.0F) && (measurements.humidity <= 100.0F) &&                         //
             isFloatValueValid(measurements.pressue_hpa) &&                                                 //
-            (measurements.pressue_hpa >= 900.0F) && (measurements.pressue_hpa <= PRESSURE_SEALEVEL_HPA) && //
+            (measurements.pressue_hpa >= 900.0F) && (measurements.pressue_hpa <= PRESSURE_MAX_PLAUSIBLE_HPA) && //
             isFloatValueValid(measurements.pv_voltage) &&                                                  //
             (measurements.pv_voltage >= 0.0F && measurements.pv_voltage <= 14.0F) &&                       //
             isFloatValueValid(measurements.supply_voltage) &&                                              //

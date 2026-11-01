@@ -13,6 +13,8 @@
 #include "ringbuffer.h"
 
 constexpr float PRESSURE_SEALEVEL_HPA{1013.25F};
+// Highest air pressure which is physically plausible (record at sea level is ~1084 hPa)
+constexpr float PRESSURE_MAX_PLAUSIBLE_HPA{1100.0F};
 
 struct MqttConfig
 {
