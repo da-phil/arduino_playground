@@ -1,0 +1,30 @@
+# Build profiles for arduino-cli: board platform and library versions per supported board.
+# Build with `make` in this folder or `make SKETCH=DHT22` in the repository root (see the Makefile there).
+
+profiles:
+  nano_33_iot:
+    notes: Arduino Nano 33 IoT
+    fqbn: arduino:samd:nano_33_iot
+    platforms:
+      - platform: arduino:samd (1.8.14)
+    libraries:
+      - DHT sensor library (1.4.7)
+      - Adafruit Unified Sensor (1.1.15) # used by the DHT library
+
+  mkrwifi1010:
+    notes: Arduino MKR WiFi 1010
+    fqbn: arduino:samd:mkrwifi1010
+    platforms:
+      - platform: arduino:samd (1.8.14)
+    libraries:
+      - DHT sensor library (1.4.7)
+      - Adafruit Unified Sensor (1.1.15) # used by the DHT library
+
+  mkr1000:
+    notes: Arduino MKR1000
+    fqbn: arduino:samd:mkr1000
+    platforms:
+      - platform: arduino:samd (1.8.14)
+    libraries:
+      - DHT sensor library (1.4.7)
+      - Adafruit Unified Sensor (1.1.15) # used by the DHT library

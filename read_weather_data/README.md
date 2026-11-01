@@ -21,25 +21,9 @@ Tbd
 
 ### Prerequisites
 
-#### Arduino libraries
-
-In order to use this codebase the following Arduino libs are needed:
-
-* WiFi101
-* ArduinoMqttClient
-* NTPClient
-* RTCZero
-
-If you use a DHT22 sensor you additionally need the `DHT sensor library`, for the more accurate BME280 sensor, which also measures air pressure, you need to
-install the `Adafruit BME280 Library` and the `Adafruit Unified Sensor` libraries.
-
-If I didn't completely misunderstand or mess it up, you can use the following command together with the `arduino-cli` tool to install al the above-mentioned libraries by the following command for the current development platform (Arudino MKR1000):
-
-```bash
-arduino-cli compile --profile mkrwifi1010
-```
-
-If this does not work, you need to install each library individually via the library manager.
+The board platform and all libraries are pinned in [`sketch.yaml`](sketch.yaml) and installed automatically
+when building with `make` or `arduino-cli`. See the [main README](../README.md#building) for the build
+prerequisites and commands.
 
 #### Credentials for Wi-Fi network and MQTT broker
 
@@ -54,6 +38,24 @@ constexpr const char *SECRETS_MQTT_PASSWORD = "123456"; // MQTT password
 constexpr const char *SECRETS_MQTT_SERVER_IP = "192.168.0.1"; // IP address of the MQTT broker
 constexpr const int SECRETS_MQTT_SERVER_PORT = 1883; // Port of MQTT broker
 ```
+
+### Building and uploading
+
+In this folder or the repository root:
+
+```bash
+make                                  # compile for the Nano 33 IoT
+make upload PORT=/dev/ttyACM0         # compile and upload
+make monitor PORT=/dev/ttyACM0        # show the serial output
+make test                             # build and run the unit tests on this computer
+```
+
+### Unit tests
+
+The unit tests in [`test`](test) cover the platform independent parts (ring buffer, scheduler). They use
+[doctest](https://github.com/doctest/doctest) and are built with CMake for the development computer, not
+for the board. `make test` configures, builds and runs them; build output goes to
+`build/read_weather_data/tests` in the repository root.
 
 ## Server setup
 
