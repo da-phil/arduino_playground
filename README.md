@@ -52,8 +52,9 @@ You can also run `make` inside a sketch folder: there it builds that sketch, wit
 `make upload PORT=/dev/ttyACM0` in `DHT22/` uploads the DHT22 sketch. In a sketch folder, `make all-profiles`
 builds that sketch for every board, while `make all` still builds all sketches.
 
-Unit tests run on this computer, not on the board. A sketch has unit tests if its folder contains a
-`CMakeLists.txt`; currently that's `read_weather_data`, with its tests in `read_weather_data/test`.
+Unit tests run on this computer, not on the board. A sketch has unit tests if its folder contains a `test`
+folder; they are built with CMake from the `CMakeLists.txt` in the sketch folder. Currently that's
+`read_weather_data`, with its tests in `read_weather_data/test`.
 
 Build output goes to the `build/` folder in the repository root. Without `make`, the same build works with
 e.g. `arduino-cli compile --profile nano_33_iot read_weather_data`.

@@ -64,9 +64,17 @@ all:
 		$(MAKE) --no-print-directory all-profiles SKETCH=$$sketch || exit 1; \
 	done
 
-# Unit tests run on this computer. A sketch has unit tests if it contains a CMakeLists.txt.
+# Unit tests run on this computer. A sketch has unit tests if it contains a test/ folder,
+# they are built with CMake from the CMakeLists.txt in the sketch folder.
 test: check-sketch
-	@test -f $(SKETCH)/CMakeLists.txt || { echo "$(SKETCH) has no unit tests"; exit 0; } && \
+	@if [ ! -d $(SKETCH)/test ]; then \
+		echo "$(SKETCH) has no unit tests"; \
+		exit 0; \
+	fi; \
+	if [ ! -f $(SKETCH)/CMakeLists.txt ]; then \
+		echo "$(SKETCH)/test exists, but $(SKETCH)/CMakeLists.txt to build the tests is missing" >&2; \
+		exit 1; \
+	fi; \
 	cmake -S $(SKETCH) -B $(TEST_BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug && \
 	cmake --build $(TEST_BUILD_DIR) && \
 	cd $(TEST_BUILD_DIR) && ctest --output-on-failure
