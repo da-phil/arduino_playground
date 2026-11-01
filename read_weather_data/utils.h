@@ -13,6 +13,8 @@
 #include "ringbuffer.h"
 
 constexpr float PRESSURE_SEALEVEL_HPA{1013.25F};
+// Highest air pressure which is physically plausible (record at sea level is ~1084 hPa)
+constexpr float PRESSURE_MAX_PLAUSIBLE_HPA{1100.0F};
 
 struct MqttConfig
 {
@@ -79,5 +81,14 @@ bool isFloatValueValid(const float value);
 bool areMeasurementsPlausible(const WeatherMeasurements &measurements);
 
 bool readyToSchedule(const unsigned long next_schedule_interval);
+
+struct MemoryStats
+{
+    uint32_t unallocated_bytes; /// RAM between the top of the heap and the stack
+    uint32_t heap_used_bytes;   /// Heap memory currently allocated
+    uint32_t heap_free_bytes;   /// Freed heap memory not yet reused, grows with fragmentation
+};
+
+MemoryStats getMemoryStats();
 
 #endif // READ_WEATHER_DATA_UTILS_H

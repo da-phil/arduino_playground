@@ -18,7 +18,8 @@ on:
 jobs:
   build:
     name: ${{ matrix.board.fqbn }}
-    runs-on: ubuntu-latest
+    # arduino/compile-sketches@v1 needs Python 3.12.4, which isn't available for Ubuntu 26.04
+    runs-on: ubuntu-24.04
     env:
       SKETCHES_REPORTS_PATH: sketches-reports
     strategy:

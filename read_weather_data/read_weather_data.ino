@@ -33,6 +33,7 @@
 #include "ringbuffer.h"
 #include "scheduler.h"
 #include "utils.h"
+#include "watchdog.h"
 
 // General config
 constexpr uint32_t BUSY_LOOP_DELAY_MS{10U};
@@ -44,6 +45,13 @@ constexpr uint32_t SAMPLING_TASK_INTERVAL_MS{2U * 1000U};
 constexpr uint32_t DATA_TRANSMISSION_TASK_INTERVAL_MS{15U * 1000U};
 constexpr uint8_t SAMPLING_TASK_SLOWDOWN_FACTOR_WHILE_DISCONNECTED{2U};
 constexpr uint32_t MAX_NTP_RTC_TIMEDIFF_S{10U};
+constexpr uint32_t HEARTBEAT_TASK_INTERVAL_MS{60U * 60U * 1000U};
+
+// Reset the board if the main loop is stuck for longer than this. It must be longer than the
+// longest legitimate blocking call: an MQTT connect attempt (TCP connect, waiting for the
+// broker's answer, closing the socket on failure) can block for tens of seconds.
+constexpr uint32_t WATCHDOG_TIMEOUT_MS{3U * 60U * 1000U};
+constexpr unsigned long MQTT_CONNECTION_TIMEOUT_MS{10U * 1000U};
 
 // This delay accounts for leaving MQTT clients (particularily Telegraf)
 // enoough time to re-connect once connection to the broker was lost
@@ -55,6 +63,9 @@ constexpr uint32_t SERIAL_BAUDRATE{9600U};
 constexpr bool ENABLE_WAIT_FOR_CONNECTED_TERMINAL{false};
 
 // ADC config
+// Only channels with a non-zero voltage divider factor are sampled. Never configure A4/A5 on a
+// Nano board (e.g. Nano 33 IoT): they are also the I2C pins SDA/SCL of the BME280 sensor, and
+// analogRead() disconnects a pin from the I2C peripheral.
 constexpr AdcConfig adc_config{
     .v_ref = 3.3F,
     .adc_bit_resolution = 12,
@@ -112,8 +123,13 @@ using AdcMeasurements = std::array<float, 8>;
 AdcMeasurements getAdcMeasurements(const AdcConfig &adc_config)
 {
     AdcMeasurements adc_measurements{};
-    for (std::size_t i = 0U; i < 8U; ++i)
+    for (std::size_t i = 0U; i < adc_measurements.size(); ++i)
     {
+        // Skip unused channels, see comment at adc_config
+        if (adc_config.voltage_divider_factor[i] == 0.0F)
+        {
+            continue;
+        }
         // TODO: check if the following assumption is portable to all Arduino platforms
         const int analog_val = analogRead(A0 + i);
         const float adc_voltage = analog_val * (adc_config.v_ref / static_cast<float>(adc_config.num_samples));
@@ -208,16 +224,11 @@ WeatherMeasurements takeMeasurements(Adafruit_BME280 &bme_sensor, RTCZero &rtc)
                                      .supply_voltage = adc_measurements[1]};
     measurements.is_valid = read_sensor_success && areMeasurementsPlausible(measurements);
 
-    // re-init hack: somehow I2C is broken after a measurement retrieval on an Arduino Nano 33 IoT board
-    // and needs to be re-initialized every time after...
-    const bool sensor_initialized = initBme280Sensor(bme_sensor);
-    if (!sensor_initialized)
+    if (!measurements.is_valid)
     {
-        Logger::get().logFatal("Weather sensor could not be initialized, can not continue!");
-        while (true)
-        {
-            delay(BUSY_LOOP_DELAY_MS);
-        }
+        // Try to recover the sensor (e.g. after an I2C glitch) for the next sampling cycle.
+        // If this fails, it is retried in the next cycle instead of stopping the weather station.
+        initBme280Sensor(bme_sensor);
     }
 
     return measurements;
@@ -284,6 +295,7 @@ void networkConnectionTask()
     {
         updateRtcFromNtp(ntp_client, rtc, false);
     }
+    watchdog::feed();
 
     bool connection_established{mqttclient.connected()};
     if (!connection_established)
@@ -304,6 +316,17 @@ Scheduler<unsigned long> sampling_task{SAMPLING_TASK_INTERVAL_MS, millis, sampli
 Scheduler<unsigned long> mqtt_sender_task{DATA_TRANSMISSION_TASK_INTERVAL_MS, millis,
                                           []() { sendWeatherMeasurements(mqttclient, TOPIC_MEASUREMENTS, tx_buffer); }};
 
+// Logs uptime and memory usage, to spot memory leaks or heap fragmentation in the MQTT logs
+void heartbeatTask()
+{
+    static uint32_t uptime_h{0U};
+    const MemoryStats memory = getMemoryStats();
+    Logger::get().logInfo("Uptime %luh, RAM free %lu, heap used %lu, heap free %lu", uptime_h, memory.unallocated_bytes,
+                          memory.heap_used_bytes, memory.heap_free_bytes);
+    ++uptime_h;
+}
+Scheduler<unsigned long> heartbeat_task{HEARTBEAT_TASK_INTERVAL_MS, millis, heartbeatTask};
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 //
 // Setup function - This routine runs once when you press reset
@@ -312,12 +335,14 @@ Scheduler<unsigned long> mqtt_sender_task{DATA_TRANSMISSION_TASK_INTERVAL_MS, mi
 
 void setup()
 {
+    watchdog::enable(WATCHDOG_TIMEOUT_MS);
     Serial.begin(SERIAL_BAUDRATE);
 
     if (ENABLE_WAIT_FOR_CONNECTED_TERMINAL)
     {
         while (!Serial)
         {
+            watchdog::feed();
             delay(BUSY_LOOP_DELAY_MS);
         }
     }
@@ -326,6 +351,7 @@ void setup()
 
     Logger::get().setLoggingBackends({&serial_logging, &mqtt_logging});
     Logger::get().setTimeFunction([]() { return rtc.getEpoch(); });
+    Logger::get().logInfo("Booting, last reset cause: %s", watchdog::getResetCause());
 
     // Configure ADC
     analogReadResolution(adc_config.adc_bit_resolution);
@@ -335,17 +361,21 @@ void setup()
     const bool sensor_initialized = initializeWeatherSensor(dht, bme_sensor, WEATHER_SENSOR);
     if (!sensor_initialized)
     {
-        Logger::get().logFatal("Weather sensor could not be initialized, can not continue!");
-        while (true)
-        {
-            delay(BUSY_LOOP_DELAY_MS);
-        }
+        Logger::get().logError("Weather sensor could not be initialized, retrying while sampling");
     }
+
+#if defined(WIFI_HAS_FEED_WATCHDOG_FUNC)
+    // WiFi.begin() can block for up to 50 s, let it signal that it is still alive
+    WiFi.setFeedWatchdogFunc(watchdog::feed);
+#endif
+    mqttclient.setConnectionTimeout(MQTT_CONNECTION_TIMEOUT_MS);
 
     connectToWiFi(WiFi, wifi_config);
     ntp_client.begin();
+    watchdog::feed();
     connectToMqttBroker(mqttclient, mqtt_config);
     updateRtcFromNtp(ntp_client, rtc, true);
+    heartbeatTask();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -356,6 +386,8 @@ void setup()
 
 void loop()
 {
+    watchdog::feed();
+
     // Wifi & MQTT connection task - freerunning
     bool connection_established_before{mqttclient.connected()};
     network_connection_task.executeIfReady();
@@ -373,4 +405,10 @@ void loop()
 
     // MQTT sender task
     mqtt_sender_task.executeIfReady();
+
+    heartbeat_task.executeIfReady();
+
+    // Every loop iteration talks to the WiFi module over SPI (mqttclient.connected(), poll(), ...),
+    // so don't spin at full speed
+    delay(BUSY_LOOP_DELAY_MS);
 }
