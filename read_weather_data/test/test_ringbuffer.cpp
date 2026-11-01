@@ -1,4 +1,4 @@
-#include "../ringbuffer.h"
+#include "../src/ringbuffer.h"
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"

@@ -27,13 +27,13 @@
 #include <WiFiUdp.h>
 #include <cstdio>
 
-#include "arduino_secrets.h"
-#include "logging.h"
-#include "read_weather_data.h"
-#include "ringbuffer.h"
-#include "scheduler.h"
-#include "utils.h"
-#include "watchdog.h"
+#include "src/arduino_secrets.h"
+#include "src/logging.h"
+#include "src/read_weather_data.h"
+#include "src/ringbuffer.h"
+#include "src/scheduler.h"
+#include "src/utils.h"
+#include "src/watchdog.h"
 
 // General config
 constexpr uint32_t BUSY_LOOP_DELAY_MS{10U};

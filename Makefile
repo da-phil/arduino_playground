@@ -35,7 +35,7 @@ SKETCHES := $(patsubst %/sketch.yaml,%,$(wildcard */sketch.yaml))
 profiles_of = $(shell sed -n 's/^  \([A-Za-z0-9_-]*\):$$/\1/p' $(1)/sketch.yaml)
 
 # Sketches with a secrets template can't be built before the secrets file was created
-SECRETS = $(if $(wildcard $(SKETCH)/arduino_secrets.h.template),$(SKETCH)/arduino_secrets.h)
+SECRETS = $(patsubst %.template,%,$(wildcard $(SKETCH)/arduino_secrets.h.template $(SKETCH)/src/arduino_secrets.h.template))
 COMPILE = $(ARDUINO_CLI) compile --profile $(PROFILE) --build-path $(BUILD_DIR)/$(SKETCH)/$(PROFILE)
 TEST_BUILD_DIR = $(BUILD_DIR)/$(SKETCH)/tests
 

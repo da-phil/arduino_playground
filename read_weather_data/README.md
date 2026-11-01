@@ -27,7 +27,7 @@ prerequisites and commands.
 
 #### Credentials for Wi-Fi network and MQTT broker
 
-After checking out the code make sure to copy `arduino_secrets.h.template` to `arduino_secrets.h` and adapt the values to your network setup and credentials:
+After checking out the code make sure to copy `src/arduino_secrets.h.template` to `src/arduino_secrets.h` and adapt the values to your network setup and credentials:
 
 ```cpp
 // Secrets which are not supposed to be commited in version control!

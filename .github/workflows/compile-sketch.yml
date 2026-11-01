@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set arduino secrets
-        run: cd read_weather_data && mv arduino_secrets.h.template arduino_secrets.h
+        run: mv read_weather_data/src/arduino_secrets.h.template read_weather_data/src/arduino_secrets.h
 
       - name: Compile sketches
         uses: arduino/compile-sketches@v1
@@ -96,7 +96,7 @@ jobs:
         uses: arduino/setup-arduino-cli@v2
 
       - name: Set arduino secrets
-        run: cp read_weather_data/arduino_secrets.h.template read_weather_data/arduino_secrets.h
+        run: cp read_weather_data/src/arduino_secrets.h.template read_weather_data/src/arduino_secrets.h
 
       - name: Compile all sketches for all profiles
         run: make all

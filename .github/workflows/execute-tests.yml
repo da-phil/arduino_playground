@@ -48,17 +48,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The boards are built with arm-none-eabi-gcc 7 (toolchain 7-2017q4 of arduino:samd 1.8.14),
+          # so the unit tests use the same major GCC version. Update it with the platform in sketch.yaml.
           - gcc: "7"
-            cxxflags: -w
-          - gcc: "8"
-            cxxflags: -w
-          - gcc: "9"
-            cxxflags: -w
-          - gcc: "10"
-            cxxflags: -w
-          - gcc: "11"
-            cxxflags: -w
-          - gcc: "12"
             cxxflags: -w
 
     steps:
