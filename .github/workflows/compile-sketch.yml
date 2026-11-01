@@ -6,12 +6,16 @@ on:
       - "read_weather_data/**"
       - "bme_280_test/**"
       - "DHT22/**"
+      - "simple_adc_reading/**"
+      - "Makefile"
   pull_request:
     paths:
       - ".github/workflows/compile-sketch.yml"
       - "read_weather_data/**"
       - "bme_280_test/**"
       - "DHT22/**"
+      - "simple_adc_reading/**"
+      - "Makefile"
   workflow_dispatch:
   repository_dispatch:
 
@@ -80,9 +84,9 @@ jobs:
           path: ${{ env.SKETCHES_REPORTS_PATH }}
           name: sketches-report-${{ matrix.board.artifact-name-suffix }}
 
-  # Builds read_weather_data the documented way: with the pinned versions from sketch.yaml
+  # Builds all sketches the documented way: with the Makefile and the pinned versions from sketch.yaml
   build-profiles:
-    name: read_weather_data profiles
+    name: sketch.yaml profiles
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -94,5 +98,5 @@ jobs:
       - name: Set arduino secrets
         run: cp read_weather_data/arduino_secrets.h.template read_weather_data/arduino_secrets.h
 
-      - name: Compile all profiles
-        run: make -C read_weather_data all-profiles
+      - name: Compile all sketches for all profiles
+        run: make all

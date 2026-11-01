@@ -21,27 +21,9 @@ Tbd
 
 ### Prerequisites
 
-* [arduino-cli](https://arduino.github.io/arduino-cli/latest/installation/) and `make`
-* Optional, for the unit tests: `cmake` and a C++ compiler
-* Optional, for formatting the code: `clang-format` (the CI uses version 21)
-
-#### Arduino platform and libraries
-
-You don't need to install any Arduino libraries by hand. The board platform and the exact library versions
-the sketch is built and tested with are listed in [`sketch.yaml`](sketch.yaml), with one build profile per
-supported board:
-
-| Profile       | Board                         |
-|---------------|-------------------------------|
-| `nano_33_iot` | Arduino Nano 33 IoT (default) |
-| `mkrwifi1010` | Arduino MKR WiFi 1010         |
-| `mkr1000`     | Arduino MKR1000               |
-
-On the first build `arduino-cli` downloads everything listed in the selected profile into its own cache, so
-it doesn't interfere with libraries you installed for other sketches.
-
-If you use the Arduino IDE instead, install the platform and library versions listed in `sketch.yaml` with
-the Boards Manager and the Library Manager.
+The board platform and all libraries are pinned in [`sketch.yaml`](sketch.yaml) and installed automatically
+when building with `make` or `arduino-cli`. See the [main README](../README.md#building) for the build
+prerequisites and commands.
 
 #### Credentials for Wi-Fi network and MQTT broker
 
@@ -59,22 +41,14 @@ constexpr const int SECRETS_MQTT_SERVER_PORT = 1883; // Port of MQTT broker
 
 ### Building and uploading
 
-Run these commands in the `read_weather_data` folder. Find the serial port of a connected board with
-`arduino-cli board list`.
+In the repository root:
 
 ```bash
 make                                  # compile for the Nano 33 IoT
 make upload PORT=/dev/ttyACM0         # compile and upload
 make monitor PORT=/dev/ttyACM0        # show the serial output
-make PROFILE=mkr1000                  # compile for another board from sketch.yaml
-make all-profiles                     # compile for all boards
 make test                             # run the unit tests on this computer
-make format                           # format the code with clang-format
-make help                             # list all targets
 ```
-
-Build output goes to the `build/` folder in the repository root. Without `make`, the same build works with
-`arduino-cli compile --profile nano_33_iot` in this folder.
 
 ## Server setup
 
