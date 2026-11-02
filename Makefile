@@ -2,7 +2,8 @@
 #
 # Every sketch folder contains a sketch.yaml, which pins the board platform and all library
 # versions per board ("profile"). arduino-cli downloads them automatically on the first build,
-# nothing to install by hand.
+# nothing to install by hand. If a pinned version is newer than the local index, the index is
+# updated automatically.
 #
 #   make                       compile read_weather_data for the Nano 33 IoT
 #   make SKETCH=<folder>       compile another sketch, e.g. make SKETCH=DHT22
@@ -39,14 +40,30 @@ SECRETS = $(patsubst %.template,%,$(wildcard $(SKETCH)/arduino_secrets.h.templat
 COMPILE = $(ARDUINO_CLI) compile --profile $(PROFILE) --build-path $(BUILD_DIR)/$(SKETCH)/$(PROFILE)
 TEST_BUILD_DIR = $(BUILD_DIR)/$(SKETCH)/tests
 
+# Runs the arduino-cli command $(1). If a version pinned in sketch.yaml is missing from the local
+# library or platform index (it was released after the last index update), updates the indexes
+# and runs the command once more.
+with_index_update = \
+	echo "$(1)"; \
+	log=$$(mktemp); \
+	{ $(1) 2>&1; echo $$? >$$log.status; } | tee $$log; \
+	status=$$(cat $$log.status); \
+	if [ $$status -ne 0 ] && grep -q "^Error initializing instance: .* not found" $$log; then \
+		echo "A pinned version is missing from the local index, updating the index and trying again"; \
+		$(ARDUINO_CLI) update && $(1); \
+		status=$$?; \
+	fi; \
+	rm -f $$log $$log.status; \
+	exit $$status
+
 .DEFAULT_GOAL := compile
 .PHONY: compile upload monitor all-profiles all test check list clean help check-sketch
 
 compile: check-sketch $(SECRETS)
-	$(COMPILE) $(SKETCH)
+	@$(call with_index_update,$(COMPILE) $(SKETCH))
 
 upload: check-sketch $(SECRETS)
-	$(COMPILE) --upload --port $(PORT) $(SKETCH)
+	@$(call with_index_update,$(COMPILE) --upload --port $(PORT) $(SKETCH))
 
 monitor:
 	$(ARDUINO_CLI) monitor --port $(PORT) --config baudrate=$(BAUDRATE)
